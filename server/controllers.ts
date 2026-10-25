@@ -1,3 +1,4 @@
+import { readConversationState } from './chat-state.js';
 import { z } from 'zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Store } from './repositories.js';
@@ -105,17 +106,22 @@ export class ApiController extends BaseController {
   cancel = async (req: FastifyRequest, reply: FastifyReply) =>
     this.ok(reply, await this.operations.cancel(params.parse(req.params).id));
   chat = async (req: FastifyRequest, reply: FastifyReply) => {
-    const { message } = z
-      .object({ message: z.string().trim().min(1).max(6000) })
+    const { message, contextId } = z
+      .object({ message: z.string().trim().min(1).max(6000), contextId: z.string().max(80).optional() })
       .strict()
       .parse(req.body);
     const abort = new AbortController();
     req.raw.on('aborted', () => abort.abort());
-    return this.ok(reply, await this.assistant.chat(message, requestKey(req), abort.signal));
+    return this.ok(
+      reply,
+      await this.assistant.chat(message, requestKey(req), abort.signal, 'web', contextId),
+    );
   };
   conversation = async (req: FastifyRequest, reply: FastifyReply) => {
-    const { before } = z
+    const { before, archive, q } = z
       .object({
+        archive: z.enum(['true', 'false']).optional(),
+        q: z.string().trim().min(1).max(200).optional(),
         before: z
           .string()
           .regex(/^[1-9]\d{0,18}$/)
@@ -123,7 +129,12 @@ export class ApiController extends BaseController {
           .optional(),
       })
       .parse(req.query);
-    return this.ok(reply, await this.store.conversation(50, before));
+    const state = await readConversationState(this.store);
+    const after = archive === 'true' ? '0' : state.visibleAfter;
+    return this.ok(
+      reply,
+      q ? await this.store.recallConversation(q, after) : await this.store.conversation(50, before, after),
+    );
   };
   connect = async (req: FastifyRequest, reply: FastifyReply) => {
     if (this.config.DEMO_MODE) throw new AppError(409, 'Google bağlantısı için canlı moda geçin.');

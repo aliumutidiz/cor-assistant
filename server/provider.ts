@@ -1,3 +1,5 @@
+import { readConversationState } from './chat-state.js';
+import type { ConversationChange } from '../shared/chat-controls.js';
 import { spawn } from 'node:child_process';
 import { z } from 'zod';
 import { assistantResponse, operationSchema, groupSchema, type SkillGroup } from '../shared/contracts.js';
@@ -197,10 +199,20 @@ export class AssistantService {
     private channels = { telegram: false, voice: false },
     private research = new ResearchService(store),
   ) {}
-  async chat(message: string, key: string, signal?: AbortSignal, scope = 'web') {
+  async chat(message: string, key: string, signal?: AbortSignal, scope = 'web', expectedContext?: string) {
     const release = await this.queue.acquire(signal);
     try {
-      return await this.runChat(message, key, signal, scope);
+      return await this.runChat(message, key, signal, scope, expectedContext);
+    } finally {
+      release();
+    }
+  }
+  async changeConversation(input: ConversationChange) {
+    const release = this.queue.tryAcquire();
+    if (!release)
+      throw new AppError(409, 'Wait for the active assistant request to finish. No history was changed.');
+    try {
+      return await this.store.changeConversation(input);
     } finally {
       release();
     }
@@ -260,7 +272,16 @@ export class AssistantService {
       release();
     }
   }
-  private async runChat(message: string, key: string, signal?: AbortSignal, scope = 'web') {
+  private async runChat(
+    message: string,
+    key: string,
+    signal?: AbortSignal,
+    scope = 'web',
+    expectedContext?: string,
+  ) {
+    const conversationState = await readConversationState(this.store);
+    if (expectedContext && expectedContext !== conversationState.contextId)
+      throw new AppError(409, 'Conversation context changed. This older request was not executed.');
     if (containsCredential(message))
       throw new AppError(
         400,
@@ -277,7 +298,7 @@ export class AssistantService {
       timeZone: 'Europe/Istanbul',
       language: 'en',
     };
-    const clarificationKey = 'assistant.clarification:' + digest(scope);
+    const clarificationKey = 'assistant.clarification:' + digest(scope + ':' + conversationState.contextId);
     const direct = calendarQuestion(message, preferences.timeZone);
     if (direct) {
       if (signal?.aborted) throw new AppError(499, 'İstek iptal edildi.');
@@ -306,18 +327,23 @@ export class AssistantService {
         validate,
         recovery,
         signal,
-        digest('v2:' + scope + ':' + capability + ':' + instructionRevision),
+        digest(
+          'v3:' + scope + ':' + capability + ':' + instructionRevision + ':' + conversationState.contextId,
+        ),
       );
     const [recentArchive, recalledArchive] = await Promise.all([
-      this.store.conversation(50),
-      this.store.recallConversation(message),
+      this.store.conversation(50, undefined, conversationState.contextAfter),
+      this.store.recallConversation(message, conversationState.contextAfter),
     ]);
     const archived = [
       ...new Map([...recalledArchive, ...recentArchive].map((row) => [row.id, row])).values(),
     ].sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0));
     const legacy =
       (await this.store.get<{ role: 'user' | 'assistant'; text: string }[]>('assistant.history')) ?? [];
-    const history = conversationContext(archived.length ? archived : legacy, message);
+    const history = conversationContext(
+      archived.length ? archived : conversationState.version === 1 ? legacy : [],
+      message,
+    );
     const routing = continuation
       ? { output: { group: continuation.group }, usage: undefined }
       : await generate(

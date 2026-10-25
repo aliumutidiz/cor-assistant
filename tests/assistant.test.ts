@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AssistantService, scopedResponseSchema, claimsUnsubmittedAction, type ModelProvider } from '../server/provider.js';
+import {
+  AssistantService,
+  scopedResponseSchema,
+  claimsUnsubmittedAction,
+  type ModelProvider,
+} from '../server/provider.js';
 import { MemoryStore } from '../server/repositories.js';
 import { DemoCalendar } from '../server/google.js';
 import { RoutineService, OperationService } from '../server/services.js';
@@ -16,18 +21,44 @@ function harness(outputs: unknown[]) {
   return { store, calendar, routines, operations, assistant, generate };
 }
 describe('skill orchestration', () => {
-  it.each(['Oluşturmak için sıraya aldım.','Hatırlatmayı kurdum.','I queued the routine.'])('rejects unsubmitted completion language: %s',(message)=>{expect(claimsUnsubmittedAction(message)).toBe(true);});
+  it('resets model context and native conversation without deleting the archive', async () => {
+    const h = harness([
+      { group: 'conversation' },
+      { message: 'A remembered reply', action: null, read: null },
+      { group: 'conversation' },
+      { message: 'A fresh reply', action: null, read: null },
+    ]);
+    await h.assistant.chat('Private old topic', 'before-reset');
+    const first = h.generate.mock.calls.map((call) => call as unknown[]);
+    await h.assistant.changeConversation({ expectedVersion: 1, mode: 'reset' });
+    await expect(h.assistant.chat('stale message', 'stale', undefined, 'web', 'initial')).rejects.toThrow(
+      'context changed',
+    );
+    await h.assistant.chat('Hello again', 'after-reset');
+    const later = h.generate.mock.calls.slice(first.length).map((call) => call as unknown[]);
+    expect(JSON.stringify(later)).not.toContain('Private old topic');
+    expect(JSON.stringify(later)).not.toContain('A remembered reply');
+    expect((first[first.length - 1][3] as { conversationKey: string }).conversationKey).not.toBe(
+      (later[later.length - 1][3] as { conversationKey: string }).conversationKey,
+    );
+    expect(await h.store.conversation()).toHaveLength(4);
+  });
+
+  it.each(['Oluşturmak için sıraya aldım.', 'Hatırlatmayı kurdum.', 'I queued the routine.'])(
+    'rejects unsubmitted completion language: %s',
+    (message) => {
+      expect(claimsUnsubmittedAction(message)).toBe(true);
+    },
+  );
   it('continues a Telegram clarification after service recreation without routing yes as a new task', async () => {
     const h = harness([
       { group: 'event-management' },
       { message: 'Should it last one hour?', action: null, read: null },
     ]);
     await h.assistant.chat('Tomorrow at 15:00 add skating', 'clarify-first', undefined, 'telegram:-100123');
-    const generate = vi
-      .fn()
-      .mockResolvedValue({
-        output: { message: 'Please provide the event location.', action: null, read: null },
-      });
+    const generate = vi.fn().mockResolvedValue({
+      output: { message: 'Please provide the event location.', action: null, read: null },
+    });
     const restarted = new AssistantService({ generate }, h.store, h.calendar, h.operations);
     await restarted.chat('evet', 'clarify-yes', undefined, 'telegram:-100123');
     expect(generate).toHaveBeenCalledTimes(1);

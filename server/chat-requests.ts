@@ -1,3 +1,4 @@
+import { readConversationState } from './chat-state.js';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AssistantService } from './provider.js';
@@ -9,6 +10,7 @@ import { AppError } from './errors.js';
 import { containsCredential } from './sensitive.js';
 type RequestState = {
   hash: string;
+  contextId?: string;
   status: 'queued' | 'running' | 'succeeded' | 'failed';
   result?: unknown;
   error?: string;
@@ -22,11 +24,15 @@ export class ChatRequests {
     private store: Store,
     private assistant: AssistantService,
   ) {}
-  async submit(id: string, message: string) {
+  async submit(id: string, message: string, expectedContext?: string) {
+    const context = await readConversationState(this.store);
+    if (expectedContext && expectedContext !== context.contextId)
+      throw new AppError(409, 'Conversation context changed. Reload the conversation before sending.');
     if (containsCredential(message))
       throw new AppError(400, 'Bağlantı anahtarlarını sohbete yazma. Ayarlar alanını kullan.');
     const state = await this.store.setIfAbsent<RequestState>('assistant.request:' + id, {
       hash: digest(message),
+      contextId: context.contextId,
       status: 'queued',
     });
     if (state.hash !== digest(message))
@@ -63,6 +69,8 @@ export class ChatRequests {
         message,
         'web:' + id,
         AbortSignal.any([this.stopSignal.signal, AbortSignal.timeout(8 * 60000)]),
+        'web',
+        state.contextId,
       );
       await this.store.set(key, { ...state, status: 'succeeded', result });
       job.status = 'succeeded';
@@ -94,11 +102,11 @@ export function chatRequestRoutes(app: FastifyInstance, service: ChatRequests) {
     { config: { rateLimit: { max: 12, timeWindow: 60000 } } },
     async (req, reply) => {
       const id = z.uuid().parse(requestKey(req));
-      const { message } = z
-        .object({ message: z.string().trim().min(1).max(6000) })
+      const { message, contextId } = z
+        .object({ message: z.string().trim().min(1).max(6000), contextId: z.string().max(80).optional() })
         .strict()
         .parse(req.body);
-      return reply.code(202).send(await service.submit(id, message));
+      return reply.code(202).send(await service.submit(id, message, contextId));
     },
   );
   app.get('/api/chat/requests/:id', async (req) =>

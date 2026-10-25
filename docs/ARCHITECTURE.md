@@ -61,3 +61,7 @@ Browser API calls handle empty/non-JSON proxy responses explicitly. Only idempot
 These repositories informed modular provider/tool design and calendar scenarios; their source code was not copied wholesale.
 
 Explicit AI routine kinds use a separate ai_report queue partition and a read-only reporting skill; fixed reminder delivery remains independent of model generation. Task memory records support one-time deterministic reminders and non-destructive completion. See PERSONAL-ASSISTANT.md for contracts and limits.
+
+## Conversation lifecycle
+
+See [Conversation controls](CONVERSATIONS.md) for context watermarks, provider conversation rotation, local archive removal and the distinction from personal memory.

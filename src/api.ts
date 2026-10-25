@@ -27,10 +27,12 @@ export async function sendChat<T>(
   key: string,
   signal: AbortSignal,
   asyncEnabled = false,
+  contextId?: string,
 ): Promise<T> {
-  if (!asyncEnabled) return api<T>('/chat', { message }, 'POST', key, signal);
+  if (!asyncEnabled)
+    return api<T>('/chat', { message, ...(contextId ? { contextId } : {}) }, 'POST', key, signal);
   try {
-    await api('/chat/requests', { message }, 'POST', key, signal);
+    await api('/chat/requests', { message, ...(contextId ? { contextId } : {}) }, 'POST', key, signal);
   } catch (error) {
     if (!(error instanceof ApiError) || error.status < 500) throw error;
     // A lost acknowledgement must not submit a second mutation under a new key.

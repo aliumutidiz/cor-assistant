@@ -20,6 +20,8 @@ describe('HTTP security boundaries', () => {
   it('protects memory, exports and voice settings with the existing owner session', async () => {
     const { cookie, csrf } = await setup();
     for (const url of [
+      '/api/chat/context',
+      '/api/chat/export',
       '/api/memories',
       '/api/brain/export',
       '/api/settings/telegram',

@@ -3,6 +3,18 @@ import { AppError } from './errors.js';
 export class ChatQueue {
   private active = false;
   private waiting: (() => void)[] = [];
+  tryAcquire(): (() => void) | undefined {
+    if (this.active || this.waiting.length) return;
+    this.active = true;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const next = this.waiting.shift();
+      if (next) next();
+      else this.active = false;
+    };
+  }
   constructor(
     private limit = 3,
     private timeout = 60000,

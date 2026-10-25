@@ -1,3 +1,8 @@
+import {
+  initialConversationState,
+  type ConversationState,
+  type ConversationChange,
+} from '../shared/chat-controls.js';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import type { Job, Operation, Routine, CalendarEvent } from '../shared/contracts.js';
@@ -41,8 +46,9 @@ export interface Store {
   memory(id: string): Promise<MemoryRecord | undefined>;
   memoryHistory(id: string): Promise<MemoryRecord[]>;
   saveMemory(record: MemoryRecord, expected: number | undefined, operationId: string): Promise<MemoryRecord>;
-  conversation(limit?: number, before?: string): Promise<ConversationMessage[]>;
-  recallConversation(query: string): Promise<ConversationMessage[]>;
+  conversation(limit?: number, before?: string, after?: string): Promise<ConversationMessage[]>;
+  recallConversation(query: string, after?: string): Promise<ConversationMessage[]>;
+  changeConversation(input: ConversationChange): Promise<ConversationState>;
   appendConversation(key: string, user: string, assistant: string): Promise<void>;
   get<T>(key: string): Promise<T | undefined>;
   set(key: string, value: unknown): Promise<void>;
@@ -185,11 +191,16 @@ export class MemoryStore implements Store {
     return structuredClone(saved);
   }
   private conversationRows: ConversationMessage[] = [];
-  async recallConversation(query: string) {
+  private conversationSequence = 0;
+  private conversationRequests = new Map<string, string>();
+  async recallConversation(query: string, after = '0') {
     const terms = memoryTerms(query);
     return structuredClone(
       this.conversationRows
-        .filter((row) => terms.some((term) => foldMemoryText(row.text).includes(term)))
+        .filter(
+          (row) =>
+            BigInt(row.id) > BigInt(after) && terms.some((term) => foldMemoryText(row.text).includes(term)),
+        )
         .map((row) => ({
           row,
           score: terms.filter((term) => foldMemoryText(row.text).includes(term)).length,
@@ -199,23 +210,86 @@ export class MemoryStore implements Store {
         .map((hit) => hit.row),
     );
   }
+  async changeConversation(input: ConversationChange): Promise<ConversationState> {
+    const old =
+      (this.kv.get('conversation.state') as ConversationState | undefined) ?? initialConversationState;
+    if (old.version !== input.expectedVersion)
+      throw new AppError(409, 'Conversation changed. Refresh before trying again.');
+    if (
+      [...this.js.values()].some(
+        (j) =>
+          ['assistant', 'telegram_incoming'].includes(j.kind) && ['queued', 'running'].includes(j.status),
+      )
+    )
+      throw new AppError(409, 'Wait for pending messages to finish before changing conversation context.');
+    const boundary = String(this.conversationSequence);
+    const selected = input.messageId ? this.conversationRequests.get(input.messageId) : undefined;
+    if (input.mode === 'forget' && !selected) throw new AppError(404, 'Message not found.');
+    const next = {
+      ...old,
+      version: old.version + 1,
+      contextId: randomUUID(),
+      ...(input.mode !== 'forget' ? { contextAfter: boundary } : {}),
+      ...(['new', 'delete'].includes(input.mode) ? { visibleAfter: boundary } : {}),
+    };
+    if (['forget', 'delete'].includes(input.mode)) {
+      const removed = this.conversationRows.filter(
+        (row) => input.mode === 'delete' || this.conversationRequests.get(row.id) === selected,
+      );
+      const keys = new Set(removed.map((row) => this.conversationRequests.get(row.id)));
+      const removedIds = new Set(removed.map((row) => row.id));
+      this.conversationRows = this.conversationRows.filter((row) => !removedIds.has(row.id));
+      for (const row of removed) this.conversationRequests.delete(row.id);
+      for (const [key, value] of this.kv) {
+        if (key.startsWith('chat:') && (input.mode === 'delete' || keys.has(key)))
+          this.kv.set(key, {
+            ...(value as object),
+            result: { message: 'This reply was removed from local chat history.', removed: true },
+          });
+        if (
+          key.startsWith('assistant.request:') &&
+          (input.mode === 'delete' || keys.has('chat:web:' + key.slice('assistant.request:'.length)))
+        )
+          this.kv.set(key, {
+            ...(value as object),
+            status: 'failed',
+            result: undefined,
+            error: 'This reply was removed from local chat history.',
+          });
+      }
+      if (input.mode === 'delete') this.kv.set('assistant.history', []);
+      for (const job of this.js.values())
+        if (
+          job.kind === 'assistant' &&
+          job.payload.chatRequest &&
+          (input.mode === 'delete' || keys.has('chat:web:' + job.payload.chatRequest.id))
+        )
+          job.payload.chatRequest.message = '[Removed from chat history]';
+    }
+    for (const key of this.kv.keys()) if (key.startsWith('assistant.clarification:')) this.kv.delete(key);
+    this.kv.set('conversation.state', next);
+    return structuredClone(next);
+  }
   private conversationKeys = new Set<string>();
-  async conversation(limit = 50, before?: string) {
+  async conversation(limit = 50, before?: string, after = '0') {
     return structuredClone(
       this.conversationRows
-        .filter((m) => !before || BigInt(m.id) < BigInt(before))
+        .filter((m) => BigInt(m.id) > BigInt(after) && (!before || BigInt(m.id) < BigInt(before)))
         .slice(-Math.min(500, Math.max(1, limit))),
     );
   }
   async appendConversation(key: string, user: string, assistant: string) {
     if (this.conversationKeys.has(key)) return;
     this.conversationKeys.add(key);
+    const start = this.conversationSequence;
+    this.conversationRequests.set(String(start + 1), key);
+    this.conversationRequests.set(String(start + 2), key);
     for (const [role, text] of [
       ['user', user],
       ['assistant', assistant],
     ] as const)
       this.conversationRows.push({
-        id: String(this.conversationRows.length + 1),
+        id: String(++this.conversationSequence),
         role,
         text,
         createdAt: new Date().toISOString(),
@@ -334,7 +408,7 @@ export class MemoryStore implements Store {
   async close() {}
 }
 export class PostgresStore implements Store {
-  async recallConversation(query: string) {
+  async recallConversation(query: string, after = '0') {
     const terms = memoryTerms(query)
       .map((term) => term + ':*')
       .join(' | ');
@@ -342,9 +416,9 @@ export class PostgresStore implements Store {
     return (
       await this.pool.query(
         `SELECT id::text,role,text,created_at,request_key FROM conversation_messages
-       WHERE cor_memory_vector_v1('',text,'','[]'::jsonb) @@ to_tsquery('pg_catalog.simple',$1)
+       WHERE id>$2::bigint AND cor_memory_vector_v1('',text,'','[]'::jsonb) @@ to_tsquery('pg_catalog.simple',$1)
        ORDER BY ts_rank_cd(cor_memory_vector_v1('',text,'','[]'::jsonb),to_tsquery('pg_catalog.simple',$1)) DESC,id DESC LIMIT 8`,
-        [terms],
+        [terms, after],
       )
     ).rows.map((row) => ({
       id: row.id,
@@ -507,12 +581,55 @@ export class PostgresStore implements Store {
     if (!saved.rows[0]) throw new AppError(409, 'Kayıt değişmiş. Güncel sürümü yeniden yükle.');
     return saved.rows[0].data;
   }
+  async changeConversation(input: ConversationChange): Promise<ConversationState> {
+    await this.setIfAbsent('conversation.state', initialConversationState);
+    const result = await this.pool.query(
+      `
+      WITH old AS (SELECT value FROM kv WHERE key='conversation.state' FOR UPDATE),
+      boundary AS (SELECT COALESCE(max(id),0)::text AS id FROM conversation_messages),
+      target AS (SELECT id,role,request_key,regexp_replace(request_key,':(user|assistant)$','') AS base FROM conversation_messages WHERE id=$3::bigint AND left(request_key,7)<>'legacy:'),
+      changed AS (
+        UPDATE kv SET value=old.value || jsonb_build_object('version',$1::integer+1,'contextId',$4::text)
+          || CASE WHEN $2::text<>'forget' THEN jsonb_build_object('contextAfter',boundary.id) ELSE '{}'::jsonb END
+          || CASE WHEN $2::text IN ('new','delete') THEN jsonb_build_object('visibleAfter',boundary.id) ELSE '{}'::jsonb END
+        FROM old,boundary WHERE key='conversation.state' AND (old.value->>'version')::integer=$1
+          AND ($2::text<>'forget' OR EXISTS(SELECT 1 FROM target))
+          AND NOT EXISTS(SELECT 1 FROM jobs WHERE status IN ('queued','running') AND data->>'kind' IN ('assistant','telegram_incoming'))
+        RETURNING kv.value
+      ), removed AS (
+        DELETE FROM conversation_messages USING changed WHERE $2::text='delete' OR ($2::text='forget' AND EXISTS(
+          SELECT 1 FROM target t WHERE conversation_messages.request_key IN (t.base||':user',t.base||':assistant',t.request_key)
+           OR (left(t.request_key,7)='legacy:' AND ((t.role='user' AND conversation_messages.id=t.id+1 AND conversation_messages.role='assistant') OR (t.role='assistant' AND conversation_messages.id=t.id-1 AND conversation_messages.role='user')))
+        )) RETURNING request_key
+      ), safe_replies AS (
+        UPDATE kv SET value=value || jsonb_build_object('result',jsonb_build_object('message','This reply was removed from local chat history.','removed',true))
+        WHERE left(key,5)='chat:' AND EXISTS(SELECT 1 FROM changed) AND ($2::text='delete' OR key IN(SELECT regexp_replace(request_key,':(user|assistant)$','') FROM removed)) RETURNING key
+      ), safe_requests AS (
+        UPDATE kv SET value=(value-'result') || jsonb_build_object('status','failed','error','This reply was removed from local chat history.')
+        WHERE left(key,18)='assistant.request:' AND EXISTS(SELECT 1 FROM changed) AND ($2::text='delete' OR 'chat:web:'||substring(key FROM 19) IN(SELECT regexp_replace(request_key,':(user|assistant)$','') FROM removed)) RETURNING key
+      ), legacy AS (
+        DELETE FROM kv WHERE key='assistant.history' AND $2::text='delete' AND EXISTS(SELECT 1 FROM changed) RETURNING key
+      ), clarifications AS (
+        DELETE FROM kv WHERE key LIKE 'assistant.clarification:%' AND EXISTS(SELECT 1 FROM changed) RETURNING key
+      ), scrubbed_jobs AS (
+        UPDATE jobs SET data=jsonb_set(data,'{payload,chatRequest,message}','"[Removed from chat history]"'::jsonb)
+        WHERE data->>'kind'='assistant' AND EXISTS(SELECT 1 FROM changed) AND ($2::text='delete' OR 'chat:web:'||(data#>>'{payload,chatRequest,id}') IN(SELECT regexp_replace(request_key,':(user|assistant)$','') FROM removed)) RETURNING id
+      ) SELECT value FROM changed`,
+      [input.expectedVersion, input.mode, input.messageId ?? null, randomUUID()],
+    );
+    if (!result.rows[0])
+      throw new AppError(
+        409,
+        'Conversation changed or messages are pending. Refresh and wait for them to finish.',
+      );
+    return result.rows[0].value;
+  }
   constructor(public pool: pg.Pool) {}
-  async conversation(limit = 50, before?: string) {
+  async conversation(limit = 50, before?: string, after = '0') {
     const rows = (
       await this.pool.query(
-        'SELECT id::text,role,text,created_at,request_key FROM conversation_messages WHERE ($1::bigint IS NULL OR id < $1::bigint) ORDER BY id DESC LIMIT $2',
-        [before ?? null, Math.min(500, Math.max(1, limit))],
+        'SELECT id::text,role,text,created_at,request_key FROM conversation_messages WHERE ($1::bigint IS NULL OR id < $1::bigint) AND id>$3::bigint ORDER BY id DESC LIMIT $2',
+        [before ?? null, Math.min(500, Math.max(1, limit)), after],
       )
     ).rows.reverse();
     return rows.map((r) => ({

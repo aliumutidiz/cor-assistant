@@ -1,3 +1,6 @@
+import { useChatDraft } from './chat-draft';
+import { ChatTools, CopyReply } from './ChatTools';
+import type { ConversationState } from '../shared/chat-controls';
 import {
   useCallback,
   useEffect,
@@ -194,6 +197,14 @@ export function App() {
   const [eventEditor, setEventEditor] = useState<CalendarEvent | null | undefined>();
   const [routineEditor, setRoutineEditor] = useState<Routine | null | undefined>();
   const [advanced, setAdvanced] = useState(false);
+  const [chatContext, setChatContext] = useState<ConversationState>();
+  const reloadConversation = async () => {
+    const rows = await api<Message[]>('/chat/history');
+    setMessages(rows);
+    setOlderBefore(rows.length === 50 ? rows[0].id : undefined);
+    setHistoryError('');
+    setPrompt('');
+  };
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -251,6 +262,7 @@ export function App() {
     return () => clearInterval(interval);
   }, [s, refreshAgy]);
   const [prompt, setPrompt] = useState('');
+  useChatDraft(s?.owner, prompt, setPrompt);
   const [chatBusy, setChatBusy] = useState(false);
   const chatAbort = useRef<AbortController | null>(null);
   const activeChatRequest = useRef<string | undefined>(undefined);
@@ -305,7 +317,7 @@ export function App() {
         setS(current);
         try {
           const history = await api<Message[]>('/chat/history');
-          if (alive && Array.isArray(history) && history.length) {
+          if (alive && Array.isArray(history)) {
             setMessages(history);
             setOlderBefore(history.length === 50 ? history[0].id : undefined);
           }
@@ -464,6 +476,7 @@ export function App() {
         requestId,
         chatAbort.current.signal,
         s?.asyncChat,
+        chatContext?.contextId,
       );
       if (s?.asyncChat) pendingChat(s.owner, null);
       setMessages((m) => [
@@ -1419,6 +1432,11 @@ export function App() {
                   ? async () => {
                       try {
                         await api('/auth/logout', {});
+                        try {
+                          sessionStorage.removeItem('cor.draft:' + s.owner);
+                        } catch {
+                          /* Storage may be disabled. */
+                        }
                         window.location.assign('/');
                       } catch (e) {
                         setError((e as Error).message);
@@ -1450,6 +1468,12 @@ export function App() {
         aria-label="Assistant conversation"
         className={'assistant-panel ' + (chatOpen || page === 'assistant' ? 'open' : '')}
       >
+        <ChatTools
+          key={s.owner}
+          busy={chatBusy || historyLoading}
+          onContext={setChatContext}
+          onChanged={reloadConversation}
+        />
         <div className="assistant-heading">
           <span className="assistant-logo">
             <ChatCircle size={21} />
@@ -1493,7 +1517,7 @@ export function App() {
                 setHistoryLoading(true);
                 try {
                   const rows = await api<Message[]>('/chat/history');
-                  if (rows.length) setMessages(rows);
+                  setMessages(rows);
                   setOlderBefore(rows.length === 50 ? rows[0].id : undefined);
                   stickToLatest.current = true;
                   setHistoryError('');
@@ -1574,6 +1598,7 @@ export function App() {
                   </small>
                 )}
                 {m.role === 'assistant' ? <MarkdownMessage text={m.text} /> : <p>{m.text}</p>}
+                {m.role === 'assistant' && <CopyReply text={m.text} />}
                 {m.role === 'assistant' && voiceStatus?.enabled && voiceStatus.configured && (
                   <VoiceButton text={m.text} voice={voiceStatus.voice} />
                 )}

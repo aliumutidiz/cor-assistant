@@ -1,3 +1,4 @@
+import { chatControlRoutes } from './chat-controls.js';
 import Fastify, { LogController } from 'fastify';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -126,6 +127,7 @@ export async function createApp(
   app.addHook('preClose', async () => c.closeProgress());
   const chatRequests = new ChatRequests(store, assistant);
   chatRequestRoutes(app, chatRequests);
+  chatControlRoutes(app, store, assistant);
   app.get('/healthz', async () => ({ ok: true }));
   app.get('/api/session', c.session);
   if (config.AUTH_MODE === 'google') {

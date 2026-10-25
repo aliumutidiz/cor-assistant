@@ -45,7 +45,7 @@ The wizard never overwrites an existing `.env`. An existing configuration takes 
 | Reminders         | One-off or event-relative reminders, rescheduling, cancellation and Telegram delivery without an LLM                          |
 | Routines          | Time zones, cron previews, pause/resume, manual runs, durable history; deterministic checks or AI daily/next-week briefings   |
 | Personal memory   | Ideas, purchases, facts, explicit tasks, owner profile, reusable weekly/monthly programs and shopping lists                   |
-| Conversations     | Full assistant workspace, compact sidebar, stored history, archive retrieval and resumable requests after reconnecting        |
+| Conversations     | Full workspace, new chats, context reset, per-exchange forgetting, searchable history, exports and draft recovery             |
 | Telegram          | Owner allowlist, private/group destinations, text and voice commands, approval buttons and scheduled delivery                 |
 | Research          | Optional SearXNG search and bounded page reads, with citations and explicit availability limits                               |
 | Voice             | Optional offline transcription and opt-in Google speech generation with buffered playback and replay cache                    |
