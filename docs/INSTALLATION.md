@@ -30,7 +30,7 @@ Upstream engines can throttle, block or return partial results. API validation a
 
 ## Platform support
 
-The React/Node application and bridge-network Docker preview are portable across Windows, Linux and macOS with a compatible Node/Docker installation. The native isolated AGY broker, systemd auto-updater and local speech provisioning scripts target Linux; they are not automatically installed by the preview. Windows/Linux development and Linux service operation have been exercised. macOS verification is provided by the CI matrix; integration support must not be inferred from a core build.
+The React/Node application and bridge-network Docker preview are portable across Windows, Linux and macOS with a compatible Node/Docker installation. The native isolated AGY broker, systemd auto-updater and local speech provisioning scripts target Linux; they are not automatically installed by the preview. Windows/Linux development and Linux service operation have been exercised. macOS verification remains pending. Verification commands run locally; GitHub Actions is not required.
 
 ## No-configuration container preview
 

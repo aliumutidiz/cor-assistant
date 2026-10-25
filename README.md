@@ -2,7 +2,7 @@
 <h1 align="center">C.O.R.</h1>
 <p align="center"><strong>Your plans, reminders and memory. On your own server.</strong></p>
 <p align="center">Central Operations & Routine · Cognitive Orchestration & Response</p>
-<p align="center"><a href="https://github.com/aliumutidiz/cor-assistant/actions/workflows/ci.yml"><img src="https://github.com/aliumutidiz/cor-assistant/actions/workflows/ci.yml/badge.svg" alt="Verification status"></a> <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="AGPL-3.0 license"></a> <img src="https://img.shields.io/badge/status-early_preview-c9f62d" alt="Early preview"></p>
+<p align="center"><a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="AGPL-3.0 license"></a> <img src="https://img.shields.io/badge/status-early_preview-c9f62d" alt="Early preview"></p>
 
 C.O.R. is a **self-hosted personal planning assistant** that connects Google Calendar, independent reminders, scheduled briefings and durable personal memory. Use the web workspace or your own Telegram bot. Fixed reminders run without an LLM; AI is reserved for interpretation, research and briefings.
 
@@ -135,7 +135,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md) an
 
 **Early preview · v0.1.0.** This release is intended for a single technical owner running their own installation. It is not a hosted multi-user service, a native Android app, an email client or an arbitrary automation engine.
 
-The web app and standard container setup are portable; isolated AGY deployment is Linux-specific. CI checks the Node application on Linux, Windows and macOS. A CI definition is not a claim that every external integration has been tested on every OS. Google permissions and provider availability remain external dependencies.
+The web app and standard container setup are portable; isolated AGY deployment is Linux-specific. Verification runs locally and on the owner-managed Linux server; GitHub Actions is disabled and no hosted runners are required. Windows and Linux have been exercised; macOS verification remains pending. Google permissions and provider availability remain external dependencies.
 
 Complex “this and following” recurrence edits are deliberately restricted; unsupported series should be edited in Google Calendar. Notifications require the server to be running and Telegram to be configured. Native mobile push, Gmail integration and UI-managed custom skills are future work. Scheduled AI briefings use a limited snapshot and disclose incomplete data.
 

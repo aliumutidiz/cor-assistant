@@ -35,7 +35,7 @@ docker compose up -d --build
 docker compose logs --tail 100 app
 ```
 
-The app runs as a non-root user with a read-only filesystem and no additional Linux capabilities. Migration runs at startup under a PostgreSQL advisory transaction lock. The default image intentionally has no AGY login and Compose forces AGY disabled. CI also defines a real PostgreSQL concurrency suite; it is skipped locally unless `TEST_DATABASE_URL` points to a disposable test database, while the embedded PostgreSQL-engine persistence suite always runs.
+The app runs as a non-root user with a read-only filesystem and no additional Linux capabilities. Migration runs at startup under a PostgreSQL advisory transaction lock. The default image intentionally has no AGY login and Compose forces AGY disabled. A real PostgreSQL concurrency suite is available locally; it is skipped unless `TEST_DATABASE_URL` points to a disposable test database, while the embedded PostgreSQL-engine persistence suite always runs.
 
 Merge `deploy/cloudflare.example.yml` into the existing tunnel without replacing other application routes. Route the chosen hostname to `http://127.0.0.1:3001`. Verify that unauthenticated traffic is blocked and a different Google identity cannot access C.O.R. Do not trust a tunnel alone as authentication.
 
