@@ -20,4 +20,4 @@ Do not weaken authentication, approvals, external-content isolation, SSRF protec
 
 Use GitHub issues for reproducible non-sensitive bugs and feature proposals. Include your OS, app version, safe error category and expected behavior. Remove personal records, OAuth URLs, cookies, tokens, email addresses and message history from attachments. Use the private security reporting channel for vulnerabilities; see SECURITY.md.
 
-By contributing, you agree that your contributions are licensed under the project's AGPL-3.0-only license. Third-party code and assets need compatible licensing and attribution. Be respectful and constructive; see CODE_OF_CONDUCT.md.
+By contributing, you agree that your contributions are licensed under the project's PolyForm Noncommercial 1.0.0 license. Third-party code and assets need compatible licensing and attribution. Be respectful and constructive; see CODE_OF_CONDUCT.md.

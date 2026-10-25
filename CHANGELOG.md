@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 — 2026-10-25
+
+- Improve readable type sizes, theme selection, scrollbars, sign-in guidance and the integrated voice/message composer.
+- Change the license for new revisions to PolyForm Noncommercial 1.0.0: permit noncommercial use, modification and distribution. Earlier AGPL releases retain their original terms.
+
+
 ## 0.1.0 — Public preview
 
 - Single-owner Google Calendar workspace with validated operations and approval boundaries.

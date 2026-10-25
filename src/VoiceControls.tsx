@@ -238,9 +238,11 @@ const SILENCE_MS = 900,
   SPEECH_THRESHOLD = 0.025,
   MAX_RECORDING_MS = 120000;
 export function VoiceInput({
+  compact = false,
   disabled,
   onTranscript,
 }: {
+  compact?: boolean;
   disabled: boolean;
   onTranscript: (text: string) => void;
 }) {
@@ -412,7 +414,9 @@ export function VoiceInput({
         aria-label={state === 'idle' ? 'Record voice message' : 'Stop recording'}
       >
         {state === 'idle' ? <Microphone size={16} /> : <Stop size={16} />}{' '}
-        {state === 'recording' ? 'Listening…' : state === 'decoding' ? 'Transcribing…' : 'Dictate'}
+        <span className={compact && state === 'idle' ? 'sr-only' : undefined}>
+          {state === 'recording' ? 'Listening…' : state === 'decoding' ? 'Transcribing…' : 'Dictate'}
+        </span>
       </button>
       {state === 'recording' && <meter min={0} max={1} value={level} aria-label="Microphone level" />}
       {note && <small role="status">{note}</small>}

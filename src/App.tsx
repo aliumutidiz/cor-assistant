@@ -254,7 +254,7 @@ export function App() {
   const [chatBusy, setChatBusy] = useState(false);
   const chatAbort = useRef<AbortController | null>(null);
   const activeChatRequest = useRef<string | undefined>(undefined);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const calendarScroll = useRef<HTMLDivElement>(null);
   const zone = s?.preferences.timeZone ?? 'Europe/Istanbul';
   const selectedDay = dateKey(date, zone);
@@ -544,26 +544,60 @@ export function App() {
     );
   if (!s)
     return (
-      <main className="loading-page">
-        <div>
-          <h1>{loginRequired ? 'Welcome to C.O.R.' : 'Could not connect.'}</h1>
-          <p className="error-text" role="alert">
+      <main className="sign-in-page">
+        <section className="sign-in-card" aria-label="Workspace access">
+          <a className="sign-in-brand" href="/" aria-label="C.O.R. home">
+            <img src="/brand/orbit.svg" width={48} height={48} alt="" />
+            <strong>C.O.R.</strong>
+          </a>
+          <h1>{loginRequired ? 'Sign in' : 'Could not connect.'}</h1>
+          <p>
             {loginRequired
-              ? 'Sign in with your own Google account to access your workspace.'
-              : error || 'Could not start the session.'}
+              ? 'Access your private planning workspace.'
+              : 'Your workspace could not be reached.'}
           </p>
           {loginRequired ? (
-            <a className="button primary" href="/api/auth/login">
-              Sign in with Google
-            </a>
+            <>
+              <a className="button primary sign-in-button" href="/api/auth/login">
+                Sign in with Google
+                <ArrowRight size={18} />
+              </a>
+              <p className="sign-in-note">
+                Only the owner configured for this installation can sign in. Calendar access is requested
+                separately.
+              </p>
+              <details className="sign-in-help">
+                <summary>Setting up your own installation?</summary>
+                <p>
+                  Try the local demo without an account. For a persistent installation, the setup wizard reads
+                  your own Google OAuth client file. Creating that client in Google Cloud is a one-time step.
+                </p>
+                <a
+                  href="https://github.com/aliumutidiz/cor-assistant/blob/main/docs/INSTALLATION.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Read the installation guide <ArrowRight size={15} />
+                </a>
+              </details>
+            </>
           ) : (
-            <button className="button subtle" onClick={() => window.location.reload()}>
-              Retry
-            </button>
+            <>
+              <p className="error-text" role="alert">
+                {error || 'Could not start the session.'}
+              </p>
+              <button className="button primary" onClick={() => window.location.reload()}>
+                Retry
+              </button>
+            </>
           )}
-        </div>
+          <div className="sign-in-appearance">
+            <ThemeControl />
+          </div>
+        </section>
       </main>
     );
+
   return (
     <div className={'app-shell' + (page === 'assistant' ? ' agent-view' : '')}>
       <aside className="sidebar">
@@ -617,14 +651,6 @@ export function App() {
         </div>
         <div className="sidebar-bottom">
           <ThemeControl />
-          <button className="connection" onClick={() => setPage('settings')}>
-            <span className={'status-dot ' + (s?.googleConnected ? 'online' : '')} />
-            {s?.demo ? 'Local demo' : s?.googleConnected ? 'Google Calendar connected' : 'Not connected'}
-            <ArrowRight size={14} />
-          </button>
-          <span className="version">
-            C.O.R. / 0.1 <span>Personal planning, connected.</span>
-          </span>
         </div>
       </aside>
       <main className="main">
@@ -1589,31 +1615,42 @@ export function App() {
           <label className="sr-only" htmlFor="chat-input">
             Message C.O.R.
           </label>
-          <input
+          <textarea
             id="chat-input"
             ref={inputRef}
+            rows={2}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="What is on your mind?"
+            placeholder="Message C.O.R.…"
             maxLength={6000}
-          />
-          <button
-            type="submit"
-            disabled={chatBusy || historyLoading || !!historyError || !prompt.trim()}
-            aria-label="Send message"
-          >
-            <ArrowRight size={20} />
-          </button>
-        </form>
-        {voiceStatus?.speechInput && (
-          <VoiceInput
-            disabled={chatBusy || historyLoading || !!historyError}
-            onTranscript={(text) => {
-              setPrompt((old) => (old ? old + ' ' + text : text));
-              inputRef.current?.focus();
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                void send();
+              }
             }}
           />
-        )}
+          <div className="composer-toolbar">
+            {voiceStatus?.speechInput && (
+              <VoiceInput
+                compact
+                disabled={chatBusy || historyLoading || !!historyError}
+                onTranscript={(text) => {
+                  setPrompt((old) => (old ? old + ' ' + text : text));
+                  inputRef.current?.focus();
+                }}
+              />
+            )}
+            <span className="composer-hint">Enter to send · Shift + Enter for a new line</span>
+            <button
+              type="submit"
+              disabled={chatBusy || historyLoading || !!historyError || !prompt.trim()}
+              aria-label="Send message"
+            >
+              <ArrowRight size={20} />
+            </button>
+          </div>
+        </form>
         <p className="assistant-disclaimer">
           <ShieldCheck size={13} />
           Sensitive changes require your approval.

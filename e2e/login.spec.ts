@@ -7,7 +7,7 @@ test('signed-out users see only the login screen and no calendar requests', asyn
     await route.fulfill({ status: 401, json: { error: 'Giriş gerekli.', loginRequired: true } });
   });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome to C.O.R.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Sign in with Google' })).toHaveAttribute(
     'href',
     '/api/auth/login',

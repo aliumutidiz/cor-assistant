@@ -103,7 +103,7 @@ test('English workspace, shared full-page chat, persistent theme and profile set
   await expect(
     page.getByRole('log').getByText('What should I know about today?', { exact: true }),
   ).toHaveCount(1);
-  await page.getByRole('button', { name: /Theme: light/ }).click();
+  await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.screenshot({ path: 'docs/images/assistant-dark.png', fullPage: false, animations: 'disabled' });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();

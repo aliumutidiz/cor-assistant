@@ -2,7 +2,7 @@
 <h1 align="center">C.O.R.</h1>
 <p align="center"><strong>Your plans, reminders and memory. On your own server.</strong></p>
 <p align="center">Central Operations & Routine · Cognitive Orchestration & Response</p>
-<p align="center"><a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="AGPL-3.0 license"></a> <img src="https://img.shields.io/badge/status-early_preview-c9f62d" alt="Early preview"></p>
+<p align="center"><a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm_Noncommercial-blue" alt="PolyForm Noncommercial license"></a> <img src="https://img.shields.io/badge/status-early_preview-c9f62d" alt="Early preview"></p>
 
 C.O.R. is a **self-hosted personal planning assistant** that connects Google Calendar, independent reminders, scheduled briefings and durable personal memory. Use the web workspace or your own Telegram bot. Fixed reminders run without an LLM; AI is reserved for interpretation, research and briefings.
 
@@ -133,7 +133,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md) an
 
 ## Status and limits
 
-**Early preview · v0.1.0.** This release is intended for a single technical owner running their own installation. It is not a hosted multi-user service, a native Android app, an email client or an arbitrary automation engine.
+**Early preview · v0.2.0.** This release is intended for a single technical owner running their own installation. It is not a hosted multi-user service, a native Android app, an email client or an arbitrary automation engine.
 
 The web app and standard container setup are portable; isolated AGY deployment is Linux-specific. Verification runs locally and on the owner-managed Linux server; GitHub Actions is disabled and no hosted runners are required. Windows and Linux have been exercised; macOS verification remains pending. Google permissions and provider availability remain external dependencies.
 
@@ -141,4 +141,4 @@ Complex “this and following” recurrence edits are deliberately restricted; u
 
 ## License and attribution
 
-Licensed under **AGPL-3.0-only**. See [LICENSE](LICENSE). The orbit identity is part of this project. C.O.R. is independent of Google, Telegram and OpenClaw; third-party names and marks belong to their owners. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Licensed under **PolyForm Noncommercial 1.0.0**. Noncommercial use, modification and redistribution are permitted under its terms; commercial use is not granted. This is source-available software, not OSI-approved open source. See [LICENSE](LICENSE), [NOTICE](NOTICE) and the [licensing guide](docs/LICENSING.md). Earlier releases, including v0.1.0, retain their original AGPL-3.0-only license. The orbit identity is part of this project. C.O.R. is independent of Google, Telegram and OpenClaw; third-party names and marks belong to their owners. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

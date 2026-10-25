@@ -1,6 +1,6 @@
 {
   "name": "cor-assistant",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -68,7 +68,7 @@
     "vitest": "^5.0.5"
   },
   "description": "Self-hosted personal planning and memory: calendar, reminders, routines and a focused assistant.",
-  "license": "AGPL-3.0-only",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/aliumutidiz/cor-assistant.git"

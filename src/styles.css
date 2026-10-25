@@ -7,7 +7,7 @@
   color: var(--tone-1);
   background: var(--tone-182);
   font-synthesis: none;
-  font-size: 14px;
+  font-size: 15px;
   --sage: var(--tone-6);
   --muted: var(--tone-65);
   --line: var(--tone-154);
@@ -83,11 +83,11 @@ h2 {
   font-weight: 560;
 }
 h3 {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 570;
 }
 small {
-  font-size: 11px;
+  font-size: 14px;
 }
 code,
 pre,
@@ -100,7 +100,7 @@ pre {
   font-family: 'Cascadia Code', Consolas, monospace;
 }
 pre {
-  font-size: 11px;
+  font-size: 14px;
   background: var(--tone-180);
   border: 1px solid var(--line);
   padding: 16px;
@@ -112,7 +112,7 @@ pre {
 }
 summary {
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--tone-26);
   padding: 12px 0;
 }
@@ -168,7 +168,7 @@ summary {
   border-radius: 9px;
   padding: 11px 10px;
   margin: 0 0 30px;
-  font-size: 11px;
+  font-size: 14px;
   background: var(--tone-184);
 }
 .workspace > div {
@@ -192,7 +192,7 @@ summary {
   color: var(--tone-34);
 }
 .section-label {
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 1.5px;
   color: var(--tone-73);
   font-weight: 550;
@@ -209,7 +209,7 @@ summary {
   border-radius: 8px;
   text-align: left;
   color: var(--tone-55);
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 5px;
 }
 .nav-item.active {
@@ -226,7 +226,7 @@ summary {
   color: var(--on-primary);
   padding: 1px 6px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 13px;
 }
 .calendar-list {
   margin-top: 35px;
@@ -234,7 +234,7 @@ summary {
 .calendar-choice {
   width: 100%;
   padding: 10px 12px;
-  font-size: 11px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -271,12 +271,12 @@ summary {
   align-items: center;
   gap: 10px;
   padding: 17px 10px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-58);
 }
 .security-note small {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 5px;
   color: var(--tone-99);
 }
@@ -288,7 +288,7 @@ summary {
   border: 1px solid var(--tone-141);
   border-radius: 7px;
   padding: 11px 10px;
-  font-size: 10px;
+  font-size: 13px;
   width: 100%;
 }
 .connection svg {
@@ -308,7 +308,7 @@ summary {
 .version {
   display: flex;
   justify-content: space-between;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--tone-92);
   padding: 18px 3px 0;
 }
@@ -325,7 +325,7 @@ summary {
   background: var(--tone-188);
 }
 .breadcrumb {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-94);
 }
 .breadcrumb span {
@@ -340,11 +340,11 @@ summary {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-59);
 }
 .command-trigger kbd {
-  font-size: 9px;
+  font-size: 12px;
   border: 1px solid var(--tone-133);
   border-radius: 4px;
   padding: 3px 5px;
@@ -357,7 +357,7 @@ summary {
   margin: auto;
 }
 .eyebrow {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 550;
   letter-spacing: 1.7px;
   color: var(--tone-83);
@@ -370,7 +370,7 @@ summary {
   gap: 20px;
 }
 .heading-row p {
-  font-size: 11px;
+  font-size: 14px;
   margin-top: 10px;
   color: var(--tone-77);
   line-height: 1.8;
@@ -382,7 +382,7 @@ summary {
   gap: 8px;
   border-radius: 7px;
   padding: 11px 15px;
-  font-size: 11px;
+  font-size: 14px;
   white-space: nowrap;
   font-weight: 500;
   border: 1px solid transparent;
@@ -407,10 +407,10 @@ summary {
 .button.small {
   padding: 6px 10px;
   min-height: 29px;
-  font-size: 10px;
+  font-size: 13px;
 }
 .small {
-  font-size: 11px;
+  font-size: 14px;
 }
 .muted {
   color: var(--tone-80);
@@ -419,7 +419,7 @@ summary {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-25);
   white-space: nowrap;
 }
@@ -436,7 +436,7 @@ summary {
   border-radius: 6px;
   padding: 9px 12px;
   margin-top: 25px;
-  font-size: 9px;
+  font-size: 12px;
 }
 .demo-banner strong {
   font-weight: 550;
@@ -459,7 +459,7 @@ summary {
   padding: 12px;
   border-radius: 7px;
   margin-top: 15px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .day-overview {
   display: flex;
@@ -479,7 +479,7 @@ summary {
   min-width: 100px;
 }
 .overview-date > span {
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-67);
   text-transform: capitalize;
   margin-bottom: 6px;
@@ -493,22 +493,22 @@ summary {
   flex: 1;
 }
 .mini-label {
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: 1.3px;
   color: var(--tone-70);
 }
 .overview-copy p {
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 6px;
 }
 .overview-copy small {
-  font-size: 9px;
+  font-size: 12px;
   display: block;
   margin-top: 6px;
   color: var(--tone-85);
 }
 .day-overview > .text-button {
-  font-size: 10px;
+  font-size: 13px;
 }
 .calendar-panel {
   background: var(--tone-190);
@@ -557,7 +557,7 @@ summary {
   gap: 1px;
 }
 .view-tabs button {
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-81);
   padding: 6px 9px;
   border-radius: 4px;
@@ -584,7 +584,7 @@ summary {
   width: 142px;
   min-width: 0;
   padding: 6px 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .zone-label,
 .day-header {
@@ -595,7 +595,7 @@ summary {
 }
 .all-day-label {
   padding: 12px 3px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--tone-51);
   text-align: center;
   border-bottom: 1px solid var(--line);
@@ -615,11 +615,11 @@ summary {
   background: var(--tone-158);
   color: var(--tone-18);
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 14px;
   overflow-wrap: anywhere;
 }
 .zone-label {
-  font-size: 8px;
+  font-size: 11px;
   color: var(--tone-116);
   padding: 22px 5px 0;
   text-align: center;
@@ -636,7 +636,7 @@ summary {
   gap: 6px;
 }
 .day-header span {
-  font-size: 9px;
+  font-size: 12px;
   color: var(--tone-91);
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -661,7 +661,7 @@ summary {
   height: 1344px;
   display: flex;
   flex-direction: column;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--tone-108);
   position: relative;
 }
@@ -717,14 +717,14 @@ summary {
   color: var(--tone-38);
 }
 .grid-event strong {
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 550;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .grid-event span {
-  font-size: 8px;
+  font-size: 11px;
   display: block;
   margin-top: 4px;
 }
@@ -735,7 +735,7 @@ summary {
   align-items: center;
   border-top: 1px solid var(--line);
   padding: 13px 18px;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--tone-100);
 }
 .calendar-footer > span {
@@ -746,7 +746,7 @@ summary {
 .content-footer {
   display: flex;
   justify-content: space-between;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--tone-111);
   padding: 22px 0;
 }
@@ -774,12 +774,12 @@ summary {
   place-items: center;
 }
 .assistant-heading strong {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 550;
 }
 .assistant-heading small {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--tone-104);
   margin-top: 4px;
 }
@@ -789,7 +789,7 @@ summary {
 }
 .assistant-intro {
   margin: 14px 0;
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--tone-35);
 }
@@ -821,7 +821,7 @@ summary {
   display: flex !important;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .memory-grid {
   display: grid;
@@ -837,7 +837,7 @@ summary {
   background: var(--tone-187);
 }
 .memory-card p {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.8;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -864,12 +864,12 @@ summary {
   margin-top: 14px;
 }
 .memory-tags span {
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-29);
 }
 .memory-actions small {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-29);
 }
 .memory-form {
@@ -880,7 +880,7 @@ summary {
 .memory-form label {
   display: grid;
   gap: 6px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .memory-body {
   white-space: pre-wrap;
@@ -890,7 +890,7 @@ summary {
 }
 .memory-detail details {
   margin-top: 15px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .memory-detail details article {
   padding-top: 15px;
@@ -904,7 +904,7 @@ summary {
 .voice-inline,
 .voice-input {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 14px;
 }
 .voice-inline .text-button,
 .voice-input .text-button,
@@ -923,7 +923,7 @@ summary {
 .voice-input small {
   display: block;
   color: var(--tone-37);
-  font-size: 10px;
+  font-size: 13px;
 }
 .voice-input meter {
   width: 65px;
@@ -937,13 +937,13 @@ summary {
   padding-bottom: 15px;
 }
 .message {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.85;
   margin: 10px 0 18px;
 }
 .message-author {
   display: block;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 1px;
   margin-bottom: 7px;
@@ -1043,7 +1043,7 @@ summary {
   border: 1px solid var(--tone-150);
   padding: 11px;
   border-radius: 7px;
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-76);
 }
 .suggestions button:hover {
@@ -1063,7 +1063,7 @@ summary {
   flex: 1;
   border: 0;
   outline: none;
-  font-size: 10px;
+  font-size: 13px;
   background: transparent;
   padding: 3px;
 }
@@ -1080,7 +1080,7 @@ summary {
   color: var(--tone-114);
 }
 .assistant-disclaimer {
-  font-size: 8px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1092,7 +1092,7 @@ summary {
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-57);
 }
 .thinking button {
@@ -1110,10 +1110,10 @@ summary {
   text-align: left;
   padding: 20px 8px;
   border-bottom: 1px solid var(--line);
-  font-size: 12px;
+  font-size: 14px;
 }
 .agenda-event time {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-69);
   min-width: 150px;
 }
@@ -1134,7 +1134,7 @@ summary {
 .month-day > button:first-child {
   width: 25px;
   height: 25px;
-  font-size: 11px;
+  font-size: 14px;
   border-radius: 50%;
 }
 .month-day .today {
@@ -1144,7 +1144,7 @@ summary {
 .month-event {
   display: block;
   width: 100%;
-  font-size: 9px;
+  font-size: 12px;
   padding: 6px;
   background: var(--tone-164);
   margin: 5px 0;
@@ -1165,12 +1165,12 @@ summary {
   color: var(--tone-96);
 }
 .empty strong {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--tone-47);
 }
 .empty p {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.8;
 }
 .section-heading {
@@ -1182,7 +1182,7 @@ summary {
 }
 .section-heading h2 > span {
   color: var(--tone-86);
-  font-size: 12px;
+  font-size: 14px;
   margin-left: 8px;
 }
 .routine-row {
@@ -1213,7 +1213,7 @@ summary {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   color: var(--tone-28);
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.8;
 }
 .routine-execution-note strong {
@@ -1236,18 +1236,18 @@ summary {
   flex: 1;
 }
 .reminder-banner strong {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 550;
 }
 .reminder-banner p {
   margin-top: 6px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .reminder-banner small {
   display: block;
   margin-top: 7px;
   color: var(--tone-40);
-  font-size: 10px;
+  font-size: 13px;
 }
 .routine-info h3 {
   display: flex;
@@ -1257,7 +1257,7 @@ summary {
 .pill {
   display: inline-flex;
   align-items: center;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 450;
   border: 1px solid var(--tone-134);
   background: var(--tone-177);
@@ -1277,7 +1277,7 @@ summary {
   border-color: var(--tone-159);
 }
 .routine-info p {
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-88);
   margin-top: 9px;
 }
@@ -1286,7 +1286,7 @@ summary {
 }
 .routine-info small {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--tone-107);
   margin-top: 8px;
 }
@@ -1305,11 +1305,11 @@ summary {
   flex: 1;
 }
 .routine-help strong {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .routine-help p {
-  font-size: 10px;
+  font-size: 13px;
   margin-top: 7px;
   line-height: 1.8;
 }
@@ -1324,14 +1324,14 @@ summary {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .operation-top code {
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-56);
 }
 .operation-top time {
-  font-size: 9px;
+  font-size: 12px;
   margin-left: auto;
   color: var(--tone-101);
 }
@@ -1345,12 +1345,12 @@ summary {
 }
 .approval-actions > p {
   width: 100%;
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-84);
   margin-bottom: 5px;
 }
 .error-text {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-109);
   line-height: 1.7;
 }
@@ -1368,14 +1368,14 @@ summary {
   flex: 1;
 }
 .setting-row p {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-72);
   line-height: 1.9;
   margin-top: 7px;
 }
 .setting-row small {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   color: var(--tone-102);
   margin-top: 8px;
 }
@@ -1423,7 +1423,7 @@ summary {
   letter-spacing: -0.7px;
 }
 .modal-heading p {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-90);
   margin-top: 8px;
   line-height: 1.8;
@@ -1437,7 +1437,7 @@ summary {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-41);
 }
 .editor-form input,
@@ -1450,7 +1450,7 @@ summary {
   padding: 10px;
   color: var(--tone-15);
   min-width: 0;
-  font-size: 12px;
+  font-size: 14px;
   width: 100%;
 }
 .editor-form textarea {
@@ -1504,12 +1504,12 @@ summary {
   border-radius: 8px;
   padding: 14px;
   color: var(--tone-62);
-  font-size: 10px;
+  font-size: 13px;
 }
 .preview-note strong {
   display: block;
   color: var(--tone-24);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   margin-top: 5px;
 }
@@ -1621,7 +1621,7 @@ summary {
   }
   .nav-item {
     justify-content: center;
-    font-size: 10px;
+    font-size: 13px;
     padding: 10px 5px;
     gap: 6px;
     margin: 0;
@@ -1637,13 +1637,13 @@ summary {
     padding: 0 18px;
   }
   .breadcrumb {
-    font-size: 9px;
+    font-size: 12px;
   }
   .breadcrumb span {
     padding: 0 7px;
   }
   .command-trigger {
-    font-size: 10px;
+    font-size: 13px;
   }
   .command-trigger kbd {
     display: none;
@@ -1652,7 +1652,7 @@ summary {
     padding: 25px 16px 0;
   }
   .eyebrow {
-    font-size: 8px;
+    font-size: 11px;
   }
   h1 {
     font-size: 27px;
@@ -1662,16 +1662,16 @@ summary {
     gap: 10px;
   }
   .heading-row p {
-    font-size: 10px;
+    font-size: 13px;
     max-width: 235px;
   }
   .heading-row > .button {
     padding: 9px;
-    font-size: 10px;
+    font-size: 13px;
     margin-top: 5px;
   }
   .demo-banner {
-    font-size: 8px;
+    font-size: 11px;
     align-items: flex-start;
     line-height: 1.7;
     margin-top: 20px;
@@ -1696,21 +1696,21 @@ summary {
     font-size: 18px;
   }
   .overview-copy p {
-    font-size: 10px;
+    font-size: 13px;
   }
   .overview-copy small {
-    font-size: 8px;
+    font-size: 11px;
   }
   .day-overview > .text-button {
     margin-left: auto;
-    font-size: 9px;
+    font-size: 12px;
   }
   .calendar-toolbar {
     padding: 12px;
     flex-wrap: wrap;
   }
   .period-navigation h2 {
-    font-size: 14px;
+    font-size: 15px;
     margin-right: 6px;
   }
   .view-tabs {
@@ -1726,12 +1726,12 @@ summary {
     max-height: 510px;
   }
   .calendar-footer {
-    font-size: 8px;
+    font-size: 11px;
     padding: 12px;
     gap: 5px;
   }
   .content-footer {
-    font-size: 7px;
+    font-size: 11px;
   }
   .routine-row {
     gap: 10px;
@@ -1759,19 +1759,19 @@ summary {
     font-size: 15px;
   }
   .section-heading > .small {
-    font-size: 9px;
+    font-size: 12px;
     max-width: 130px;
   }
   .routine-info h3 {
-    font-size: 12px;
+    font-size: 14px;
     flex-wrap: wrap;
     gap: 7px;
   }
   .routine-info p {
-    font-size: 9px;
+    font-size: 12px;
   }
   .routine-info small {
-    font-size: 8px;
+    font-size: 11px;
   }
   .operation-row {
     padding: 14px;
@@ -1780,7 +1780,7 @@ summary {
     flex-wrap: wrap;
   }
   .operation-top time {
-    font-size: 8px;
+    font-size: 11px;
   }
   .setting-row {
     flex-wrap: wrap;
@@ -1794,7 +1794,7 @@ summary {
     margin-left: 55px;
   }
   .setting-row p {
-    font-size: 10px;
+    font-size: 13px;
   }
   .assistant-panel.open {
     width: min(100%, 360px);
@@ -1816,7 +1816,7 @@ summary {
     padding: 4px;
   }
   .month-event {
-    font-size: 7px;
+    font-size: 11px;
     padding: 4px;
   }
   .agenda-event {
@@ -1827,7 +1827,7 @@ summary {
     min-width: 120px;
   }
   .agenda-event strong {
-    font-size: 11px;
+    font-size: 14px;
   }
   .agenda-event > span:last-of-type {
     display: none;
@@ -1870,7 +1870,7 @@ summary {
 .setting-row small,
 .message,
 .suggestions button {
-  font-size: 11px;
+  font-size: 14px;
 }
 .eyebrow,
 .section-label,
@@ -1884,7 +1884,7 @@ summary {
 .calendar-footer,
 .content-footer,
 .assistant-disclaimer {
-  font-size: 10px;
+  font-size: 13px;
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1947,7 +1947,7 @@ summary {
 .calendar-context-bar {
   padding: 10px 18px;
   border-bottom: 1px solid var(--line, var(--tone-153));
-  font-size: 11px;
+  font-size: 14px;
   color: var(--muted, var(--tone-46));
 }
 .calendar-search {
@@ -1964,7 +1964,7 @@ summary {
   min-width: 0;
   width: 100%;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   padding: 5px;
   outline-offset: 3px;
 }
@@ -1974,12 +1974,12 @@ summary {
   gap: 12px;
   padding: 12px 18px;
   color: var(--tone-105);
-  font-size: 12px;
+  font-size: 14px;
   border-bottom: 1px solid var(--tone-163);
 }
 .month-weekday {
   padding: 10px 12px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--tone-50);
   background: var(--tone-185);
@@ -1999,7 +1999,7 @@ summary {
   margin: 0;
 }
 .event-reminders legend {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   padding: 0 5px;
 }
@@ -2019,7 +2019,7 @@ summary {
   align-items: center;
   gap: 9px;
   color: var(--tone-48);
-  font-size: 12px;
+  font-size: 14px;
   margin: 18px 0 24px;
   line-height: 1.7;
 }
@@ -2044,11 +2044,11 @@ summary {
   flex: 1;
 }
 .reminder-copy > strong {
-  font-size: 14px;
+  font-size: 15px;
   overflow-wrap: anywhere;
 }
 .reminder-copy > p {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--tone-42);
   margin: 5px 0;
   white-space: pre-wrap;
@@ -2058,7 +2058,7 @@ summary {
   display: flex;
   gap: 8px 16px;
   flex-wrap: wrap;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-49);
   margin-top: 8px;
 }
@@ -2079,7 +2079,7 @@ summary {
 }
 .reminder-toolbar .view-tabs span {
   margin-left: 5px;
-  font-size: 10px;
+  font-size: 13px;
   color: var(--tone-53);
 }
 @media (max-width: 640px) {
@@ -2102,7 +2102,7 @@ summary {
     padding: 9px 12px;
   }
   .calendar-context-bar > span {
-    font-size: 10px;
+    font-size: 13px;
   }
 }
 .page-heading h1 {
@@ -2170,14 +2170,14 @@ summary {
   padding-left: 10px;
 }
 .program-preview time {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--tone-39);
 }
 .suggestions > small {
   width: 100%;
 }
 .operation-row h3 {
-  font-size: 14px;
+  font-size: 15px;
   margin: 6px 0;
 }
 .connection-settings {
@@ -2204,7 +2204,7 @@ summary {
 .setup-checklist li > span {
   display: block;
   color: var(--tone-33);
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
   margin-top: 4px;
 }
@@ -2227,7 +2227,7 @@ summary {
 .message-meta {
   display: block;
   color: var(--tone-43);
-  font-size: 10px;
+  font-size: 13px;
   margin-bottom: 6px;
 }
 .memory-form > label:has(input[type='checkbox']),
@@ -2264,7 +2264,7 @@ summary {
 }
 .history-section .operation-row > details {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 /* Theme tokens keep event, editor and integration surfaces consistent. */
@@ -2750,7 +2750,7 @@ summary {
   text-align: left;
   padding: 11px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .settings-navigation button[aria-current='page'] {
   background: var(--line);
@@ -2854,4 +2854,232 @@ summary {
 :root[data-theme='dark'] .nav-item.active {
   background: #2c3444;
   color: #e8efff;
+}
+
+/* Readable scale, integrated composition and native scrolling. */
+:root {
+  --scroll-thumb: #bcc4b8;
+  --scroll-hover: #8b998a;
+}
+:root[data-theme='dark'] {
+  --scroll-thumb: #46516a;
+  --scroll-hover: #697893;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.theme-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.theme-selector button {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  height: 34px;
+  border-radius: 5px;
+  color: var(--muted);
+}
+.theme-selector button[aria-pressed='true'] {
+  background: #1c1d4b;
+  color: #fff;
+}
+:root[data-theme='dark'] .theme-selector button[aria-pressed='true'] {
+  background: #c9f62d;
+  color: #1c1d4b;
+}
+.sidebar-bottom .version {
+  display: none;
+}
+.message {
+  font-size: 15px;
+  line-height: 1.7;
+}
+.nav-item {
+  font-size: 14px;
+}
+.calendar-choice {
+  font-size: 13px;
+}
+.hour-axis,
+.zone-label,
+.day-header span {
+  font-size: 12px;
+}
+.chat-form,
+.agent-view .chat-form {
+  display: block;
+  padding: 12px;
+  max-width: 860px;
+  width: auto;
+}
+.agent-view .chat-form {
+  width: calc(100% - 48px);
+  margin: 0 auto;
+}
+.chat-form textarea {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  max-height: 180px;
+  resize: vertical;
+  border: 0;
+  outline: none;
+  background: transparent;
+  padding: 4px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: inherit;
+}
+.composer-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+  min-width: 0;
+}
+.composer-toolbar > button {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+}
+.composer-toolbar .voice-input {
+  margin: 0;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.composer-toolbar .voice-input button {
+  background: transparent;
+  color: inherit;
+  width: auto;
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  gap: 6px;
+}
+.composer-toolbar .voice-input small {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.composer-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.assistant-panel:not(.agent-view .assistant-panel) .composer-hint {
+  display: none;
+}
+.assistant-heading small,
+.assistant-disclaimer {
+  font-size: 12px;
+}
+.sign-in-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: var(--surface);
+}
+.sign-in-card {
+  width: 100%;
+  max-width: 440px;
+}
+.sign-in-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 25px;
+  letter-spacing: 1px;
+  margin-bottom: 44px;
+}
+.sign-in-card h1 {
+  font-size: 30px;
+  margin-bottom: 12px;
+}
+.sign-in-card > p {
+  font-size: 16px;
+  line-height: 1.65;
+  margin-bottom: 28px;
+}
+.sign-in-button {
+  width: 100%;
+  justify-content: space-between;
+  min-height: 48px;
+  font-size: 15px;
+}
+.sign-in-card .sign-in-note {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin-top: 18px;
+  margin-bottom: 30px;
+}
+.sign-in-help {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.sign-in-help summary {
+  font-size: 14px;
+}
+.sign-in-help p {
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 6px 0 14px;
+}
+.sign-in-help a {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.sign-in-appearance {
+  margin-top: 32px;
+}
+:root[data-theme='dark'] .sign-in-brand img {
+  background: #e8edf4;
+  border-radius: 50%;
+  padding: 3px;
+}
+@media (max-width: 760px) {
+  .chat-form textarea {
+    font-size: 16px;
+  }
+  .composer-hint {
+    display: none;
+  }
+  .agent-view .chat-form {
+    width: calc(100% - 32px);
+  }
+  .sign-in-brand {
+    margin-bottom: 32px;
+  }
+  .message {
+    font-size: 15px;
+  }
 }

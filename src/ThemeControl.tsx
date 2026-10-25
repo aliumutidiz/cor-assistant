@@ -35,32 +35,35 @@ export function ThemeControl() {
       window.removeEventListener('storage', refresh);
     };
   }, []);
-  const Icon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Desktop;
+  const options = [
+    { value: 'light', label: 'Light theme', icon: Sun },
+    { value: 'dark', label: 'Dark theme', icon: Moon },
+    { value: 'system', label: 'Use device theme', icon: Desktop },
+  ] as const;
   return (
-    <button
-      className="icon-button theme-control"
-      title={'Theme: ' + theme + ' · switch'}
-      aria-label={'Theme: ' + theme + '. Switch theme'}
-      onClick={() => {
-        const value = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
-        sessionTheme = value;
-        try {
-          localStorage.setItem('cor.theme', value);
-        } catch {
-          /* The theme still works in this session. */
-        }
-        setTheme(value);
-        document.documentElement.dataset.theme =
-          value === 'system'
-            ? matchMedia('(prefers-color-scheme: dark)').matches
-              ? 'dark'
-              : 'light'
-            : value;
-        window.dispatchEvent(new Event('cor:theme-changed'));
-      }}
-    >
-      <Icon size={19} />
-      <span>{theme}</span>
-    </button>
+    <div className="theme-selector" role="group" aria-label="Appearance">
+      {options.map(({ value, label, icon: Icon }) => (
+        <button
+          key={value}
+          type="button"
+          title={label}
+          aria-label={label}
+          aria-pressed={theme === value}
+          onClick={() => {
+            sessionTheme = value;
+            try {
+              localStorage.setItem('cor.theme', value);
+            } catch {
+              /* Session-only preference remains available. */
+            }
+            setTheme(value);
+            applyTheme();
+            window.dispatchEvent(new Event('cor:theme-changed'));
+          }}
+        >
+          <Icon size={19} />
+        </button>
+      ))}
+    </div>
   );
 }
