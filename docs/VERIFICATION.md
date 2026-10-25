@@ -19,3 +19,7 @@ CI checks core Node behavior on Linux, Windows and macOS; Linux also checks a re
 See README.md for local checks. End-to-end tests use isolated demo ports 3101 and 5273 without loading the operator's `.env`. Documentation fixtures use `example.test` identities. Never run live-write tests against a personal calendar or point `TEST_DATABASE_URL` at production.
 
 A fresh installation must verify its own Google redirect/owner login, Telegram permissions and notification target, chosen provider eligibility/login/isolation, optional speech model and encrypted backup restoration. Hardware restart, internet outage, quota exhaustion and account revocation are distinct exercises; they are not implied by a successful build.
+
+## External CI availability
+
+At the initial publication, GitHub-hosted jobs were rejected before running with an account billing-lock error. The workflow is provided, but its Linux/Windows/macOS runner checks are not a completed verification until that account restriction is resolved. Local Windows checks and the independently isolated Linux deployment build are separate evidence. Do not infer macOS integration certification from the matrix.

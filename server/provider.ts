@@ -22,7 +22,7 @@ import { routineReport, type ReportInput } from './routine-report.js';
 import { ResearchService } from './research.js';
 
 export function claimsUnsubmittedAction(message: string) {
-  return /(?:\bI(?:'ve| have)?\s+(?:added|created|updated|deleted|saved|scheduled|completed|removed|set up)\b|\b(?:event|routine|reminder|record|task)\s+(?:has been |was )?(?:created|added|updated|deleted|saved|scheduled|completed)\b|öneri(?:si)?\s+hazır|(?:ekle|oluştur|güncelle|sil|kaydet|hazırla|tamamla)d[ıiuü]m|(?:eklendi|oluşturuldu|güncellendi|silindi|kaydedildi|sıraya alındı|tamamlandı)|(?:işlem|etkinlik|rutin).{0,100}hazırlandı)/iu.test(
+  return /(?:\bI(?:'ve| have)?\s+(?:added|created|updated|deleted|saved|scheduled|queued|completed|removed|set up)\b|\b(?:event|routine|reminder|record|task)\s+(?:has been |was )?(?:created|added|updated|deleted|saved|scheduled|queued|completed)\b|sıraya\s+(?:aldım|ekledim)|(?:kurdum|kuruldu|ayarladım|ayarlandı)|öneri(?:si)?\s+hazır|(?:ekle|oluştur|güncelle|sil|kaydet|hazırla|tamamla)d[ıiuü]m|(?:eklendi|oluşturuldu|güncellendi|silindi|kaydedildi|sıraya alındı|tamamlandı)|(?:işlem|etkinlik|rutin).{0,100}hazırlandı)/iu.test(
     message,
   );
 }

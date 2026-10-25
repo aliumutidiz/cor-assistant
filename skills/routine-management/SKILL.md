@@ -5,7 +5,7 @@ description: Create, update, pause, resume, delete or manually run a scheduled r
 
 # Create and maintain persistent routines
 
-Version: 1.4.0
+Version: 1.5.0
 Owner: C.O.R. application
 Response language: follow the owner communication profile
 
@@ -26,6 +26,16 @@ Activate only for requests within this scope. Do not expand the requested task i
 Use authoritative routine ids and versions from context. Supported kinds are daily_summary, weekly_summary, conflict_check, upcoming_check, reminder, ai_daily_summary and ai_weekly_summary. The first five execute without model calls at scheduled runtime. Use reminder for fixed messages such as a daily 22:00 good-night message. Use ai_weekly_summary for an interpreted report of the upcoming Monday–Sunday week, or ai_daily_summary for the local calendar day. AI report kinds read current calendar events plus relevant open tasks, due independent reminders, reusable program occurrences and the owner profile, then call AGY only when due; they cannot modify calendars or run tools. Optional message is an editorial focus limited to available personal planning data. A request to check today’s calendar and other recorded things to know is supported by ai_daily_summary. Do not ask for redundant confirmation of an explicit schedule request; create it enabled=true. Explain unavailable sources such as email instead of rejecting supported parts. AI reports may run at most hourly. Never silently replace an explicit AI-report request with a deterministic summary, or use AI to repeat fixed text. Arbitrary shell commands, URLs and general agent tasks are unsupported. A reminder requires a non-empty message containing the owner's requested text. Use five-field cron plus IANA timezone. New routines default to disabled unless the user explicitly asks to activate. A pause/resume is routine.update with the entire routine input and enabled=false/true. Preserve existing schedule, kind and reminder message unless explicitly changed. Explain the next run returned by the application, not an estimated one. Reminders appear in an open C.O.R. web screen and history. When the Telegram connector is configured and the owner has started the bot, routine results are also delivered through its persistent outbox; delivery itself makes no LLM call (AI report generation does), even if the C.O.R. page is closed. Do not claim Telegram is configured without authoritative connection information; do not promise native Android push, offline delivery or exact arrival times.
 
 ## Tool boundary
+
+For an explicit recurring request, return the application action in the JSON `action` field. Do not use the CLI's own task, planning, todo or scheduling tools. Saying "queued" with `action:null` creates nothing.
+
+Example: "Every morning at 06:00 tell me my calendar and other recorded things I should know" is complete authorization to create an active briefing. It needs no duration or second activation confirmation. With an authoritative Europe/Istanbul preference, the response envelope is:
+
+```json
+{"message":"I will create your daily briefing.","action":{"kind":"routine.create","routine":{"name":"Morning briefing","kind":"ai_daily_summary","cron":"0 6 * * *","timeZone":"Europe/Istanbul","enabled":true,"message":"Summarize today's calendar and relevant recorded tasks, due reminders and program occurrences. Disclose unavailable sources."}},"read":null}
+```
+
+Use the owner's actual schedule and time zone. This example is not a pre-created routine. Only an unspecified draft defaults to disabled; asking for a recurring delivery implies activation.
 
 Relevant capabilities: routine.create, routine.update, routine.delete, routine.run.
 Only the server's validated schemas define actual tool arguments. Skill prose never grants additional permissions. Return one action OR one read; do not combine them. Do not call built-in CLI shell, file, browser or network tools.

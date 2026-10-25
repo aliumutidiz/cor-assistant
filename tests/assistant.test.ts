@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AssistantService, scopedResponseSchema, type ModelProvider } from '../server/provider.js';
+import { AssistantService, scopedResponseSchema, claimsUnsubmittedAction, type ModelProvider } from '../server/provider.js';
 import { MemoryStore } from '../server/repositories.js';
 import { DemoCalendar } from '../server/google.js';
 import { RoutineService, OperationService } from '../server/services.js';
@@ -16,6 +16,7 @@ function harness(outputs: unknown[]) {
   return { store, calendar, routines, operations, assistant, generate };
 }
 describe('skill orchestration', () => {
+  it.each(['Oluşturmak için sıraya aldım.','Hatırlatmayı kurdum.','I queued the routine.'])('rejects unsubmitted completion language: %s',(message)=>{expect(claimsUnsubmittedAction(message)).toBe(true);});
   it('continues a Telegram clarification after service recreation without routing yes as a new task', async () => {
     const h = harness([
       { group: 'event-management' },
