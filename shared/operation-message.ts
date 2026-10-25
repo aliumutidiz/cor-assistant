@@ -4,7 +4,10 @@ export function operationMessage(op: Operation, timeZone = 'Europe/Istanbul', la
   if (language !== 'tr') return englishOperationMessage(op, timeZone);
   const a = op.action;
   const event = 'scope' in a ? a.event : undefined;
-  const title = event?.summary?.replace(/([\\`*_[\]<>])/g, '\\$1');
+  const title = (event?.summary ?? ('routine' in a ? a.routine?.name : undefined))?.replace(
+    /([\\`*_[\]<>])/g,
+    '\\$1',
+  );
   const memory = 'record' in a ? a.record : undefined;
   let details = title
     ? `“${title}”`
@@ -72,13 +75,23 @@ export function operationMessage(op: Operation, timeZone = 'Europe/Istanbul', la
     'memory.archive': 'Kaydı arşivledim; aktif hafıza aramalarında kullanmayacağım.',
     'memory.restore': 'Kaydı arşivden geri getirdim.',
   };
+  const next = op.result as { nextRun?: string; enabled?: boolean; timeZone?: string } | undefined;
+  const schedule =
+    a.kind.startsWith('routine.') && next?.nextRun && next.enabled
+      ? '\nSonraki çalışma: ' +
+        new Intl.DateTimeFormat('tr-TR', {
+          timeZone: next.timeZone ?? timeZone,
+          dateStyle: 'full',
+          timeStyle: 'short',
+        }).format(new Date(next.nextRun))
+      : '';
   const alert =
     'scope' in a && typeof a.telegramReminderMinutes === 'number'
       ? '\nTelegram hatırlatması: ' +
         (a.telegramReminderMinutes === 0 ? 'başlangıçta' : `${a.telegramReminderMinutes} dakika önce`) +
         '.'
       : '';
-  return `${details}\n${outcomes[a.kind] ?? 'İşlemi tamamladım.'}${alert}`;
+  return `${details}\n${outcomes[a.kind] ?? 'İşlemi tamamladım.'}${schedule}${alert}`;
 }
 
 function englishOperationMessage(op: Operation, timeZone: string) {
@@ -87,7 +100,13 @@ function englishOperationMessage(op: Operation, timeZone: string) {
   const event = 'event' in action ? action.event : undefined;
   const record = 'record' in action ? action.record : undefined;
   const reminder = 'reminder' in action ? action.reminder : undefined;
-  const title = event?.summary ?? record?.title ?? reminder?.title ?? op.preview?.title ?? 'Action';
+  const title =
+    event?.summary ??
+    record?.title ??
+    reminder?.title ??
+    ('routine' in action ? action.routine?.name : undefined) ??
+    op.preview?.title ??
+    'Action';
   let details = '“' + escape(title) + '”';
   const at = event?.start.dateTime ?? reminder?.remindAt ?? record?.remindAt;
   if (at)
@@ -144,5 +163,15 @@ function englishOperationMessage(op: Operation, timeZone: string) {
     'telegramReminderMinutes' in action && typeof action.telegramReminderMinutes === 'number'
       ? '\nTelegram reminder: ' + action.telegramReminderMinutes + ' minutes before.'
       : '';
-  return details + '\n' + (outcomes[action.kind] ?? 'Completed the action.') + alert;
+  const next = op.result as { nextRun?: string; enabled?: boolean; timeZone?: string } | undefined;
+  const schedule =
+    action.kind.startsWith('routine.') && next?.nextRun && next.enabled
+      ? '\nNext run: ' +
+        new Intl.DateTimeFormat('en-GB', {
+          timeZone: next.timeZone ?? timeZone,
+          dateStyle: 'full',
+          timeStyle: 'short',
+        }).format(new Date(next.nextRun))
+      : '';
+  return details + '\n' + (outcomes[action.kind] ?? 'Completed the action.') + schedule + alert;
 }

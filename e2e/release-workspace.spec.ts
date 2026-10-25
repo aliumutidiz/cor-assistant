@@ -1,5 +1,19 @@
 import { test, expect } from '@playwright/test';
 
+test('profile onboarding waits for confirmed storage and survives reload', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('What should I call you?').fill('Alex');
+  await page.getByLabel('Assistant reply language').selectOption('en');
+  await page.getByRole('button', { name: 'Save profile', exact: true }).click();
+  await expect(
+    page.getByText('Profile saved. Your assistant will use these preferences in future replies.'),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByLabel('What should I call you?')).toHaveValue('Alex');
+});
+
 // Documentation uses a completely synthetic fixture, never a live owner account.
 test('English workspace, shared full-page chat, persistent theme and profile settings', async ({ page }) => {
   await page.setViewportSize({ width: 1512, height: 982 });

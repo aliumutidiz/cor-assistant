@@ -297,6 +297,7 @@ export class AssistantService {
     const route = z.object({ group: groupSchema }).strict();
     const recovery = { used: false };
     let capability = 'routing';
+    let instructionRevision = digest(await bootstrap());
     const generate = <T>(prompt: string, schema: Record<string, unknown>, validate: (output: unknown) => T) =>
       generateValidated(
         this.provider,
@@ -305,7 +306,7 @@ export class AssistantService {
         validate,
         recovery,
         signal,
-        digest('v1:' + scope + ':' + capability),
+        digest('v2:' + scope + ':' + capability + ':' + instructionRevision),
       );
     const [recentArchive, recalledArchive] = await Promise.all([
       this.store.conversation(50),
@@ -334,6 +335,7 @@ export class AssistantService {
         );
     const group = route.parse(routing.output).group;
     capability = group;
+    instructionRevision = digest((await bootstrap()) + (await loadSkill(group, message)));
     const routines = group === 'routine-management' ? await this.store.routines() : undefined;
     const reminders =
       group === 'reminder-management'

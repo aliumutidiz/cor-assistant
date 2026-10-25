@@ -1,6 +1,6 @@
 import { useState, type ReactNode, type FormEvent } from 'react';
-import type { Session } from './api';
-import type { OperationInput } from '../shared/contracts';
+import { api, type Session } from './api';
+import type { Operation, OperationInput } from '../shared/contracts';
 import { ThemeControl } from './ThemeControl';
 
 export function ProfileSettings({
@@ -27,14 +27,23 @@ export function ProfileSettings({
     setError('');
     setNotice('');
     try {
-      await perform({
+      let operation = (await perform({
         kind: 'preferences.update',
         timeZone: zone,
         language,
         displayName: name.trim(),
         communicationStyle: style,
         onboarded: true,
-      });
+      })) as Operation;
+      for (let attempt = 0; ['queued', 'running'].includes(operation.status) && attempt < 20; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const history = await api<{ operations: Operation[] }>('/history');
+        operation = history.operations.find((item) => item.id === operation.id) ?? operation;
+      }
+      if (operation.status !== 'succeeded')
+        throw new Error(
+          operation.error ?? 'Profile save is not confirmed yet. Check Activity before trying again.',
+        );
       await refresh();
       setNotice('Profile saved. Your assistant will use these preferences in future replies.');
     } catch (e) {

@@ -23,3 +23,9 @@ A fresh installation must verify its own Google redirect/owner login, Telegram p
 ## External CI availability
 
 At the initial publication, GitHub-hosted jobs were rejected before running with an account billing-lock error. The workflow is provided, but its Linux/Windows/macOS runner checks are not a completed verification until that account restriction is resolved. Local Windows checks and the independently isolated Linux deployment build are separate evidence. Do not infer macOS integration certification from the matrix.
+
+## Independent preview verification
+
+A fresh Linux Docker build of the runtime image was started as a non-root, read-only, capability-dropped demo container with a 512 MB memory limit, a separate loopback port and no provider/Google/Telegram credentials. Its health endpoint, HTML and demo session checks passed; the container was removed afterwards. The local setup wizard and secret-safe diagnostics also passed in an isolated clean-source directory.
+
+A real owner-request test in ephemeral application storage created a 06:00 daily briefing through AGY, then listed that routine in a second turn without creating another operation. This exercised scoped CLI conversation resumption and current routine context without live calendar writes or test Telegram messages. Model availability and interpretation remain fallible; errors must not be reported as successful actions.
