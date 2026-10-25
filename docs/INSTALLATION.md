@@ -1,5 +1,7 @@
 # Modular installation
 
+For AI-assisted installation, start with the root [SETUP.md](../SETUP.md). It explains how to inspect an existing environment, choose a route, handle owner-only account steps and verify the result without disclosing secrets or using hosted CI.
+
 ## Local demo
 
 Use Node.js 24 LTS (22 or newer is supported), clone the repository and run `npm ci`, `npm run setup`, choose local demo, then `npm run dev`. The setup command creates independent secrets and refuses to overwrite an existing `.env`. Demo data is temporary and does not contact Google or Telegram. Do not expose development mode outside the local computer.

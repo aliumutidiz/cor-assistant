@@ -1,5 +1,7 @@
 # Working on C.O.R.
 
+For installation tasks, read [SETUP.md](SETUP.md) and follow its inspection, secret-handling and verification steps before changing the environment.
+
 ## Cost policy
 
 The owner cannot pay for hosted automation. Do not add, enable or run GitHub Actions, hosted CI, paid model fallbacks or other metered services. Run verification locally or on the existing owner-managed Linux server. Public repository visibility is not authorization for paid usage. Any exception requires explicit owner approval after explaining the cost and enforcing a spending limit.

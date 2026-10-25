@@ -12,6 +12,8 @@ This is a focused personal assistant, **not an unrestricted computer agent**. It
 
 ## Try it in a minute
 
+**Installing with an AI assistant?** Give it [SETUP.md](SETUP.md). The guide includes a copyable prompt, safe demo/persistent routes, the owner-controlled Google steps, secret handling, verification and a final handover. No GitHub Actions or paid fallback is required.
+
 With Docker Desktop or Docker Engine and Compose:
 
 ```sh
