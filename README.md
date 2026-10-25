@@ -131,7 +131,7 @@ Browser tests start isolated demo services and do not need personal credentials.
 | `deploy/`, `scripts/` | Optional infrastructure, setup, diagnostics and backups       |
 | `tests/`, `e2e/`      | Security, domain, persistence and browser verification        |
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md) and [API contracts](docs/API.md).
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md), [API contracts](docs/API.md), [conversation controls](docs/CONVERSATIONS.md) and [assistant languages](docs/LANGUAGES.md). The [execution review](docs/AGENT-REVIEW-2026-10-25.md) records the latest logic fixes and verification boundaries.
 
 ## Status and limits
 

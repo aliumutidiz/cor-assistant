@@ -102,6 +102,7 @@ export const memorySearch = z
   .object({
     query: z.string().trim().max(200).default(''),
     kind: memoryKind.optional(),
+    taskState: z.enum(['open', 'done']).optional(),
     before: z
       .string()
       .regex(/^[1-9]\d{0,18}$/)

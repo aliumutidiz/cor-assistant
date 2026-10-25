@@ -23,11 +23,14 @@ export async function loadSkill(group: SkillGroup, request = '') {
   const name = groupSchema.parse(group);
   let content = await readFile(new URL(`../skills/${name}/SKILL.md`, import.meta.url), 'utf8');
   if (name === 'personal-memory') {
-    const reference = /aldım|satın|harcadım|ödedim|fiyat|tutar|ücret/iu.test(request)
-      ? 'purchases'
-      : /fikir|proje|aklıma|idea/iu.test(request)
-        ? 'ideas'
-        : 'facts-and-retrieval';
+    const reference =
+      /aldım|satın|harcadım|ödedim|fiyat|tutar|ücret|\b(?:bought|purchased|paid|spent|price|cost)\b/iu.test(
+        request,
+      )
+        ? 'purchases'
+        : /fikir|proje|aklıma|idea/iu.test(request)
+          ? 'ideas'
+          : 'facts-and-retrieval';
     content +=
       '\n' +
       (await readFile(

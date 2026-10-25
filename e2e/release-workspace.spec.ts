@@ -4,7 +4,7 @@ test('profile onboarding waits for confirmed storage and survives reload', async
   await page.goto('/');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('What should I call you?').fill('Alex');
-  await page.getByLabel('Assistant reply language').selectOption('en');
+  await page.getByLabel('Assistant reply language').fill('pt-BR');
   await page.getByRole('button', { name: 'Save profile', exact: true }).click();
   await expect(
     page.getByText('Profile saved. Your assistant will use these preferences in future replies.'),
@@ -12,6 +12,7 @@ test('profile onboarding waits for confirmed storage and survives reload', async
   await page.reload();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByLabel('What should I call you?')).toHaveValue('Alex');
+  await expect(page.getByLabel('Assistant reply language')).toHaveValue('pt-BR');
 });
 
 // Documentation uses a completely synthetic fixture, never a live owner account.

@@ -1,3 +1,4 @@
+import { modelData } from './model-context.js';
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import type { CalendarEvent, Routine } from '../shared/contracts.js';
@@ -84,7 +85,7 @@ export async function routineReport(provider: ModelProvider, input: ReportInput,
     provider,
     prompt +
       '\nREPORT_DATA: ' +
-      JSON.stringify({
+      modelData({
         now: new Date().toISOString(),
         timeZone: input.routine.timeZone,
         from: input.from,

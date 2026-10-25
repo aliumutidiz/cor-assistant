@@ -1597,7 +1597,7 @@ export function App() {
                     {formatDate(m.createdAt, zone)}
                   </small>
                 )}
-                {m.role === 'assistant' ? <MarkdownMessage text={m.text} /> : <p>{m.text}</p>}
+                {m.role === 'assistant' ? <MarkdownMessage text={m.text} /> : <p dir="auto">{m.text}</p>}
                 {m.role === 'assistant' && <CopyReply text={m.text} />}
                 {m.role === 'assistant' && voiceStatus?.enabled && voiceStatus.configured && (
                   <VoiceButton text={m.text} voice={voiceStatus.voice} />

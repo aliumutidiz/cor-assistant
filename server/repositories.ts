@@ -153,6 +153,7 @@ export class MemoryStore implements Store {
         (r) =>
           r.archived === search.archived &&
           (!search.kind || r.kind === search.kind) &&
+          (!search.taskState || (r.kind === 'task' && (r.taskState ?? 'open') === search.taskState)) &&
           (!search.before || BigInt(r.seq) < BigInt(search.before)) &&
           (!search.from ||
             (memoryBounds(r).day
@@ -528,6 +529,7 @@ export class PostgresStore implements Store {
       AND ($5::timestamptz IS NULL OR COALESCE(occurred_at,occurred_on::timestamp AT TIME ZONE COALESCE(data->>'timeZone','Europe/Istanbul'),created_at)<$5)
       AND ($6='' OR cor_memory_vector_v1(title,body || ' ' || cor_resource_text(data),summary,data->'tags') @@ websearch_to_tsquery('pg_catalog.turkish',translate($6,'Iİ','ıi'))
         OR cor_memory_vector_v1(title,body || ' ' || cor_resource_text(data),summary,data->'tags') @@ to_tsquery('pg_catalog.simple',$7))
+      AND ($9::text IS NULL OR (kind='task' AND COALESCE(data->>'taskState','open')=$9))
       ORDER BY seq DESC LIMIT $8`,
         [
           search.archived,
@@ -538,6 +540,7 @@ export class PostgresStore implements Store {
           search.query,
           prefix,
           search.limit + 1,
+          search.taskState ?? null,
         ],
       )
     ).rows;

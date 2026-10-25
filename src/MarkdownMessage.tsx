@@ -3,7 +3,7 @@ import remarkGfm from 'remark-gfm';
 
 export function MarkdownMessage({ text }: { text: string }) {
   return (
-    <div className="message-body markdown-body">
+    <div className="message-body markdown-body" dir="auto">
       <Markdown
         remarkPlugins={[remarkGfm]}
         skipHtml

@@ -61,6 +61,18 @@ async function queue(h: ReturnType<typeof setup>, update: unknown) {
   await h.service.processIncoming();
 }
 describe('Telegram channel security and commands', () => {
+  it('routes assistant failures to the originating allowed chat instead of the default group', async () => {
+    const h = setup({ TELEGRAM_ALLOWED_CHAT_IDS: [-100111, -100222], TELEGRAM_CHAT_ID: -100111 });
+    h.assistant.chat.mockRejectedValue(new AppError(503, 'Temporary model error'));
+    await queue(h, incoming(1, { text: 'New request', chat: { id: -100222, type: 'supergroup' } }));
+    await h.service.dispatch();
+    expect(h.api.call).toHaveBeenCalledWith(
+      'sendMessage',
+      expect.objectContaining({ chat_id: -100222, text: 'Temporary model error' }),
+      undefined,
+    );
+  });
+
   it('replies in the originating allowed group and rejects removed outgoing destinations', async () => {
     const groups = [-100111, -100222];
     const h = setup({ TELEGRAM_ALLOWED_CHAT_IDS: groups, TELEGRAM_CHAT_ID: groups[0] });

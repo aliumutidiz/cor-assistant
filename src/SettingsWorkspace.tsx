@@ -1,3 +1,4 @@
+import { commonReplyLanguages, replyLanguage } from '../shared/languages';
 import { useState, type ReactNode, type FormEvent } from 'react';
 import { api, type Session } from './api';
 import type { Operation, OperationInput } from '../shared/contracts';
@@ -13,7 +14,7 @@ export function ProfileSettings({
   refresh: () => Promise<void>;
 }) {
   const [name, setName] = useState(session.preferences.displayName ?? '');
-  const [language, setLanguage] = useState<'en' | 'tr'>(session.preferences.language);
+  const [language, setLanguage] = useState(session.preferences.language);
   const [style, setStyle] = useState<'concise' | 'balanced' | 'detailed'>(
     session.preferences.communicationStyle ?? 'balanced',
   );
@@ -27,10 +28,12 @@ export function ProfileSettings({
     setError('');
     setNotice('');
     try {
+      const parsedLanguage = replyLanguage.safeParse(language);
+      if (!parsedLanguage.success) throw new Error('Use a valid language tag, such as en, de or pt-BR.');
       let operation = (await perform({
         kind: 'preferences.update',
         timeZone: zone,
-        language,
+        language: parsedLanguage.data,
         displayName: name.trim(),
         communicationStyle: style,
         onboarded: true,
@@ -72,10 +75,25 @@ export function ProfileSettings({
         <div className="form-grid">
           <label>
             Assistant reply language
-            <select value={language} onChange={(e) => setLanguage(e.target.value as 'en' | 'tr')}>
-              <option value="en">English</option>
-              <option value="tr">Türkçe</option>
-            </select>
+            <input
+              list="reply-languages"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              maxLength={63}
+              required
+              placeholder="en, de, pt-BR…"
+            />
+            <datalist id="reply-languages">
+              {commonReplyLanguages.map(([tag, name]) => (
+                <option key={tag} value={tag}>
+                  {name}
+                </option>
+              ))}
+            </datalist>
+            <small>
+              Choose a suggestion or enter a language tag. This changes assistant replies, not the English
+              interface. Untranslated system receipts use English.
+            </small>
           </label>
           <label>
             Reply style

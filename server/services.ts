@@ -1,3 +1,4 @@
+import { canonicalLanguage } from '../shared/languages.js';
 import { randomUUID } from 'node:crypto';
 import { CronExpressionParser } from 'cron-parser';
 import {
@@ -64,6 +65,8 @@ export function risk(a: Action): 'normal' | 'high' {
 }
 export function validateAction(input: unknown): Action {
   const a = operationSchema.parse(input);
+  if (a.kind === 'preferences.update' && containsCredential(JSON.stringify(a)))
+    throw new AppError(400, 'Connection credentials cannot be saved in the communication profile.');
   if ('reminder' in a && containsCredential(JSON.stringify(a.reminder)))
     throw new AppError(400, 'Bağlantı sırları hatırlatmalara kaydedilemez.');
   if (
@@ -357,9 +360,10 @@ export class OperationService {
         result = await this.routines.execute(a as Extract<Action, { routineId?: string }>, op.id);
       else if (a.kind === 'preferences.update') {
         result = {
+          language: 'en',
           ...((await this.store.get<object>('preferences')) ?? {}),
           timeZone: a.timeZone,
-          language: a.language,
+          ...(a.language !== undefined ? { language: canonicalLanguage(a.language) } : {}),
           ...(a.displayName !== undefined ? { displayName: a.displayName } : {}),
           ...(a.communicationStyle !== undefined ? { communicationStyle: a.communicationStyle } : {}),
           ...(a.onboarded !== undefined ? { onboarded: a.onboarded } : {}),

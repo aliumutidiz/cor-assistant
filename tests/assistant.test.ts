@@ -275,14 +275,14 @@ describe('skill orchestration', () => {
   it('caps read loops instead of spending indefinitely', async () => {
     const h = harness([
       { group: 'calendar-read' },
-      ...Array.from({ length: 3 }, () => ({
+      ...Array.from({ length: 4 }, () => ({
         message: 'Okuyorum',
         action: null,
         read: { kind: 'calendars' },
       })),
     ]);
-    await expect(h.assistant.chat('Takvimlerimi göster', 'loop')).rejects.toThrow(/sınırına/);
-    expect(h.generate).toHaveBeenCalledTimes(4);
+    await expect(h.assistant.chat('Takvimlerimi göster', 'loop')).rejects.toThrow(/narrower search/);
+    expect(h.generate).toHaveBeenCalledTimes(5);
   });
   it('returns a clarification without mutating', async () => {
     const h = harness([

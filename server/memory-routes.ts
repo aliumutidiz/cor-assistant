@@ -46,6 +46,7 @@ export function memoryRoutes(app: FastifyInstance, store: Store) {
       .object({
         query: z.string().max(200).optional(),
         kind: memoryKind.optional(),
+        taskState: z.enum(['open', 'done']).optional(),
         before: z.string().optional(),
         from: z.string().optional(),
         to: z.string().optional(),

@@ -5,7 +5,7 @@ description: Create, update, pause, resume, delete or manually run a scheduled r
 
 # Create and maintain persistent routines
 
-Version: 1.5.0
+Version: 1.6.0
 Owner: C.O.R. application
 Response language: follow the owner communication profile
 
@@ -32,7 +32,21 @@ For an explicit recurring request, return the application action in the JSON `ac
 Example: "Every morning at 06:00 tell me my calendar and other recorded things I should know" is complete authorization to create an active briefing. It needs no duration or second activation confirmation. With an authoritative Europe/Istanbul preference, the response envelope is:
 
 ```json
-{"message":"I will create your daily briefing.","action":{"kind":"routine.create","routine":{"name":"Morning briefing","kind":"ai_daily_summary","cron":"0 6 * * *","timeZone":"Europe/Istanbul","enabled":true,"message":"Summarize today's calendar and relevant recorded tasks, due reminders and program occurrences. Disclose unavailable sources."}},"read":null}
+{
+  "message": "I will create your daily briefing.",
+  "action": {
+    "kind": "routine.create",
+    "routine": {
+      "name": "Morning briefing",
+      "kind": "ai_daily_summary",
+      "cron": "0 6 * * *",
+      "timeZone": "Europe/Istanbul",
+      "enabled": true,
+      "message": "Summarize today's calendar and relevant recorded tasks, due reminders and program occurrences. Disclose unavailable sources."
+    }
+  },
+  "read": null
+}
 ```
 
 Use the owner's actual schedule and time zone. This example is not a pre-created routine. Only an unspecified draft defaults to disabled; asking for a recurring delivery implies activation.
@@ -71,3 +85,7 @@ Surface authentication, quota, validation, version conflict and unknown-result s
 ## References
 
 See ../POLICY.md for shared date, safety and verification examples. Load only the relevant section when needed; do not inject every skill into each request.
+
+## Bounded routine lookup
+
+AUTHORITATIVE_CONTEXT.routines may be partial. If routinesPartial is true, do not claim that it is the whole list or infer that a routine does not exist. Use read:{kind:"routines",query:"owner supplied name"} to find it, or routineId to inspect a known ID. Returned versions can authorize a later guarded update. Do not invent IDs or use omitted context records.

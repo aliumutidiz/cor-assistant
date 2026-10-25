@@ -58,11 +58,26 @@ export class ChatRequests {
   }
   private async run() {
     const job = await this.store.claim(['assistant']);
-    if (!job?.payload.chatRequest) return;
+    if (!job) return;
+    if (!job.payload.chatRequest) {
+      job.status = 'failed';
+      job.error = 'The saved assistant job is missing its request payload.';
+      job.finishedAt = new Date().toISOString();
+      await this.store.finish(job);
+      return;
+    }
     const { id, message } = job.payload.chatRequest;
     const key = 'assistant.request:' + id;
     const state = await this.store.get<RequestState>(key);
-    if (!state) throw new AppError(404, 'Sohbet isteği bulunamadı.');
+    if (!state || ['succeeded', 'failed'].includes(state.status)) {
+      job.status = state?.status === 'succeeded' ? 'succeeded' : 'failed';
+      if (job.status === 'failed')
+        job.error =
+          state?.error ?? 'The saved chat request is unavailable. Check Activity before resubmitting.';
+      job.finishedAt = new Date().toISOString();
+      await this.store.finish(job);
+      return;
+    }
     try {
       await this.store.set(key, { ...state, status: 'running' });
       const result = await this.assistant.chat(

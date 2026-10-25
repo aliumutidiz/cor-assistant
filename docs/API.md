@@ -74,3 +74,11 @@ Personal resources extend memory kinds with `profile`, `program` and `shopping_l
 Owner connection settings use `GET/PUT /api/settings/telegram` and `GET/PUT /api/settings/research`. `POST` to their `/check` paths validates the saved transport without sending a Telegram message. Telegram save input includes enabled, ownerId, chatIds, notificationChatId and an optional replacement token; a blank token preserves the current credential. Responses disclose only tokenConfigured. UI settings are not assistant operations and cannot be modified by chat.
 
 The read-only `web-research` skill uses `web-search` (query) and `web-page` (exact returned or owner-supplied public URL). It cannot read private memory/calendar or mutate state. Research is unavailable until its SearXNG service is configured. See [memory, resource and network boundaries](BRAIN-AND-PERSONAL-RESOURCES.md).
+
+## Assistant execution additions
+
+preferences.update accepts an optional validated BCP 47 language tag; omission preserves the saved language. The interface remains English. See [language coverage](LANGUAGES.md).
+
+Model read envelopes support kind=routines with an optional query or routineId. Memory reads and GET /api/memories accept taskState=open or done, filtered before pagination. Tool results may be partial and carry explicit truncation metadata; omission never proves that a record does not exist.
+
+See [conversation controls](CONVERSATIONS.md) for context version checks, local forgetting and bounded history export.

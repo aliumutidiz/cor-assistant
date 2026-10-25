@@ -5,7 +5,7 @@ description: Capture owner-stated ideas, purchases and durable facts; retrieve a
 
 # Personal memory
 
-Version: 2.0.0
+Version: 2.1.0
 Owner: C.O.R. application
 Response language: follow the owner communication profile
 
@@ -77,3 +77,7 @@ No successful record is implied by a timeout or unavailable provider. Never repe
 Create kind=task only when the owner explicitly asks for task tracking, a to-do, or follow-up, with a faithful title/body and taskState=open. Do not record every future intention. A general project idea remains idea. Independent one-time reminders now belong to reminder-management and must not create an unwanted task. Existing tasks may retain their legacy remindAt field; preserve it unless changed explicitly. If a requested reminder time is ambiguous, clarify before writing. Never invent a notification deadline. Offline delivery may be late and is not native push.
 
 When the owner says “Faturayı hallettim”, search and read the full matching task, then return memory.complete with its current id and version. Multiple plausible tasks require clarification. This normal action removes it from the open list and cancels an undelivered reminder, while preserving its original content and revision history. Do not delete unrelated facts or purchases. Completed tasks are archived and can be found via read with archived=true, then restored. A restore reopens the task; a previously delivered reminder is not sent twice unless the owner sets a new reminder time. Updates must preserve taskState and remindAt unless explicitly changed. Use read:{kind:"memories",memoryKind:"task",query:""} to list pending tasks without inventing them.
+
+## Task status filters
+
+Use read:{kind:"memories",memoryKind:"task",taskState:"open"} for pending work and taskState:"done" for completed work. Filtering happens before pagination. Do not present a truncated page as the complete task list. A generic task search without taskState can include both statuses.

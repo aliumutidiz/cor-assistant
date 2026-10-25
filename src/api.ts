@@ -15,7 +15,7 @@ export type Session = {
   onboardingRequired?: boolean;
   preferences: {
     timeZone: string;
-    language: 'en' | 'tr';
+    language: string;
     displayName?: string;
     communicationStyle?: 'concise' | 'balanced' | 'detailed';
     onboarded?: boolean;

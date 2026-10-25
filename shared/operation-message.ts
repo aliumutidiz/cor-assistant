@@ -1,7 +1,11 @@
+import { baseLanguage } from './languages.js';
+import { receipts } from './receipt-languages.js';
 import type { Operation } from './contracts.js';
 
 export function operationMessage(op: Operation, timeZone = 'Europe/Istanbul', language = 'tr') {
-  if (language !== 'tr') return englishOperationMessage(op, timeZone);
+  const base = baseLanguage(language);
+  if (receipts[base]) return localizedOperationMessage(op, timeZone, language, receipts[base]);
+  if (base !== 'tr') return englishOperationMessage(op, timeZone);
   const a = op.action;
   const event = 'scope' in a ? a.event : undefined;
   const title = (event?.summary ?? ('routine' in a ? a.routine?.name : undefined))?.replace(
@@ -174,4 +178,79 @@ function englishOperationMessage(op: Operation, timeZone: string) {
         }).format(new Date(next.nextRun))
       : '';
   return details + '\n' + (outcomes[action.kind] ?? 'Completed the action.') + schedule + alert;
+}
+
+function localizedOperationMessage(
+  op: Operation,
+  timeZone: string,
+  language: string,
+  text: (typeof receipts)[string],
+) {
+  const a = op.action;
+  const event = 'event' in a ? a.event : undefined;
+  const reminder = 'reminder' in a ? a.reminder : undefined;
+  const record = 'record' in a ? a.record : undefined;
+  const result = op.result as
+    { remindAt?: string | null; nextRun?: string; enabled?: boolean; timeZone?: string } | undefined;
+  const title =
+    event?.summary ??
+    reminder?.title ??
+    record?.title ??
+    ('routine' in a ? a.routine?.name : undefined) ??
+    op.preview?.title;
+  const escape = (v: string) => v.replace(/([\\`*_[\]<>])/g, '\\$1');
+  let details = title ? '“' + escape(title) + '”\n' : '';
+  const at = event?.start.dateTime ?? result?.remindAt ?? reminder?.remindAt ?? record?.remindAt;
+  if (at)
+    details +=
+      new Intl.DateTimeFormat(language, { timeZone, dateStyle: 'full', timeStyle: 'short' }).format(
+        new Date(at),
+      ) + '\n';
+  if (event?.start.dateTime && event.end.dateTime) {
+    const date = new Intl.DateTimeFormat(language, {
+      timeZone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    });
+    const start = new Date(event.start.dateTime),
+      end = new Date(event.end.dateTime);
+    const format = new Intl.DateTimeFormat(language, {
+      timeZone,
+      ...(date.format(start) !== date.format(end) ? { dateStyle: 'short' as const } : {}),
+      timeStyle: 'short',
+    });
+    details += '– ' + format.format(end) + '\n';
+  }
+  if (event?.start.date) details += event.start.date + ' · ' + text.allDay + '\n';
+  const status =
+    op.status === 'succeeded'
+      ? a.kind === 'routine.run'
+        ? text.queued
+        : text.done
+      : op.status === 'awaiting_approval'
+        ? text.approval
+        : op.status === 'failed'
+          ? text.failed
+          : op.status === 'unknown'
+            ? text.unknown
+            : op.status === 'canceled'
+              ? text.canceled
+              : op.status === 'running'
+                ? text.running
+                : text.queued;
+  details += status;
+  if (op.status === 'failed' && op.error) details += '\n' + escape(op.error);
+  if (op.status === 'succeeded' && reminder && !reminder.enabled) details += '\n' + text.paused;
+  if (op.status === 'succeeded' && a.kind.startsWith('routine.') && result?.nextRun && result.enabled)
+    details +=
+      '\n' +
+      text.next +
+      ': ' +
+      new Intl.DateTimeFormat(language, {
+        timeZone: result.timeZone ?? timeZone,
+        dateStyle: 'full',
+        timeStyle: 'short',
+      }).format(new Date(result.nextRun));
+  return details;
 }

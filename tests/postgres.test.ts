@@ -30,6 +30,44 @@ afterAll(async () => {
   await rm(path, { recursive: true, force: true });
 });
 describe('PostgreSQL repository against an embedded PostgreSQL engine', () => {
+  it('filters completed tasks before applying pagination', async () => {
+    const { PersonalMemory } = await import('../server/memory-service.js');
+    const { memoryInput } = await import('../shared/memory.js');
+    const memory = new PersonalMemory(store);
+    const open = await memory.execute(
+      {
+        kind: 'memory.create',
+        record: memoryInput.parse({
+          kind: 'task',
+          title: 'Open audit task',
+          body: 'Pending',
+          taskState: 'open',
+        }),
+      },
+      crypto.randomUUID(),
+    );
+    for (let i = 0; i < 5; i++)
+      await memory.execute(
+        {
+          kind: 'memory.create',
+          record: memoryInput.parse({
+            kind: 'task',
+            title: 'Done audit task ' + i,
+            body: 'Completed',
+            taskState: 'done',
+          }),
+        },
+        crypto.randomUUID(),
+      );
+    const page = await memory.search({ kind: 'task', taskState: 'open', limit: 1 });
+    expect(page.items.map((item) => item.id)).toEqual([open.id]);
+    expect(
+      (await memory.search({ kind: 'task', taskState: 'done', limit: 2 })).items.every(
+        (item) => item.taskState === 'done',
+      ),
+    ).toBe(true);
+  });
+
   it('persists structured profile records and retrieves Turkish evidence across the full archive', async () => {
     const { PersonalMemory } = await import('../server/memory-service.js');
     const { memoryInput } = await import('../shared/memory.js');

@@ -1,3 +1,4 @@
+import { replyLanguage } from './languages.js';
 import { z } from 'zod';
 import { memoryOperation, memoryKind } from './memory.js';
 import { reminderOperation } from './reminders.js';
@@ -172,7 +173,7 @@ const preferenceOperation = z
   .object({
     kind: z.literal('preferences.update'),
     timeZone: timezone,
-    language: z.enum(['en', 'tr']).default('en'),
+    language: replyLanguage.optional(),
     displayName: z.string().trim().max(80).optional(),
     communicationStyle: z.enum(['concise', 'balanced', 'detailed']).optional(),
     onboarded: z.boolean().optional(),
@@ -276,6 +277,7 @@ export const assistantResponse = z
           'colors',
           'memories',
           'reminders',
+          'routines',
           'web-search',
           'web-page',
           'program-occurrences',
@@ -286,8 +288,10 @@ export const assistantResponse = z
         to: z.iso.datetime({ offset: true }).optional(),
         query: z.string().trim().max(200).optional(),
         memoryKind: memoryKind.optional(),
+        taskState: z.enum(['open', 'done']).optional(),
         memoryId: z.uuid().optional(),
         reminderId: z.uuid().optional(),
+        routineId: z.uuid().optional(),
         url: z.url().max(2048).optional(),
         archived: z.boolean().optional(),
       })

@@ -291,10 +291,11 @@ export class TelegramService {
   async processIncoming(signal?: AbortSignal) {
     const job = await this.store.claim(['telegram_incoming']);
     if (!job) return false;
+    let target: number | undefined;
     try {
       const u = telegramUpdate.parse(job.payload.telegram?.update);
       if (!this.owned(u)) throw new AppError(403, 'Telegram kimliği doğrulanamadı.');
-      const target = u.message?.chat.id ?? u.callback_query?.message?.chat.id;
+      target = u.message?.chat.id ?? u.callback_query?.message?.chat.id;
       await this.replyChat.run(target!, () =>
         this.handle(u, AbortSignal.any([AbortSignal.timeout(8 * 60000), ...(signal ? [signal] : [])])),
       );
@@ -302,7 +303,8 @@ export class TelegramService {
     } catch (e) {
       job.status = 'failed';
       job.error = e instanceof AppError ? e.message : 'Telegram komutu tamamlanamadı.';
-      await this.reply('error:' + job.id, job.error);
+      if (target !== undefined)
+        await this.replyChat.run(target, () => this.reply('error:' + job.id, job.error!));
     }
     job.finishedAt = new Date().toISOString();
     await this.store.finish(job);

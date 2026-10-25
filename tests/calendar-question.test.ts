@@ -6,6 +6,14 @@ import { DemoCalendar } from '../server/google.js';
 import { OperationService, RoutineService } from '../server/services.js';
 
 describe('zero-model calendar questions', () => {
+  it('recognizes English personal-calendar questions without treating extra instructions as read-only', () => {
+    const now = new Date('2026-10-21T21:30:00Z');
+    expect(calendarQuestion('What do I have tomorrow?', 'Europe/Istanbul', now)?.from).toBe(
+      '2026-10-22T21:00:00.000Z',
+    );
+    expect(calendarQuestion('What is on my calendar today? Then delete it.', 'UTC', now)).toBeUndefined();
+  });
+
   it('resolves Istanbul tomorrow and Monday-based weeks with exclusive midnight bounds', () => {
     const now = new Date('2026-10-21T21:30:00Z');
     expect(calendarQuestion('Yarın neler var?', 'Europe/Istanbul', now)).toMatchObject({
@@ -38,7 +46,7 @@ describe('zero-model calendar questions', () => {
       deterministic: boolean;
     };
     expect(response.deterministic).toBe(true);
-    expect(response.message).toContain('Ana takvim');
+    expect(response.message).toContain('Primary calendar');
     expect(provider.generate).not.toHaveBeenCalled();
     expect(await store.conversation()).toHaveLength(2);
     vi.spyOn(calendar, 'events').mockRejectedValue(Error('Disconnected'));
