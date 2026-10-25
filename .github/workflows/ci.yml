@@ -2,6 +2,7 @@ name: Verify C.O.R.
 on:
   push:
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -47,3 +48,13 @@ jobs:
       - run: python3 -m unittest discover -s deploy -p 'test_*.py'
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+  container-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: docker compose -f compose.demo.yaml up --build -d
+      - run: curl --fail --retry 12 --retry-delay 5 --retry-connrefused http://localhost:5173/healthz
+      - run: curl --fail http://localhost:5173/ | grep -q 'C.O.R.'
+      - if: always()
+        run: docker compose -f compose.demo.yaml down
