@@ -223,11 +223,14 @@ export function CopyReply({ text }: { text: string }) {
     <span>
       <button
         className="message-copy"
-        onClick={() => {
-          void navigator.clipboard.writeText(text).then(
-            () => setStatus('Copied'),
-            () => setStatus('Copy unavailable'),
-          );
+        onClick={async () => {
+          try {
+            if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+            await navigator.clipboard.writeText(text);
+            setStatus('Copied');
+          } catch {
+            setStatus('Copy unavailable');
+          }
         }}
       >
         Copy
