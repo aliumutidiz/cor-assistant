@@ -1,0 +1,9 @@
+# Merge this route into the existing tunnel; do not replace other routes.
+# Create an Access self-hosted application for this hostname FIRST.
+# Policy: allow only OWNER_EMAIL through your MFA-enabled identity provider.
+tunnel: EXISTING_TUNNEL_ID
+credentials-file: /etc/cloudflared/EXISTING_TUNNEL_ID.json
+ingress:
+  - hostname: cor.example.com
+    service: http://127.0.0.1:3001
+  - service: http_status:404

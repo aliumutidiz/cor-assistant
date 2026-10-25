@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily C.O.R. backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Europe/Istanbul
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

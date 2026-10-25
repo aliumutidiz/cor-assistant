@@ -1,0 +1,44 @@
+# Persistent single-owner deployment. The proxy forwards to loopback port 3001.
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cor
+      POSTGRES_USER: cor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - cor_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cor -d cor']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  app:
+    build:
+      context: .
+      target: runtime
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3001:3001'
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DEMO_MODE: 'false'
+      DATABASE_URL: postgresql://cor:${POSTGRES_PASSWORD:?Run npm run setup first}@db:5432/cor
+      LISTEN_HOST: '0.0.0.0'
+      PORT: '3001'
+      HTTP_SOCKET: ''
+      AGY_ENABLED: 'false'
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+volumes:
+  cor_data:

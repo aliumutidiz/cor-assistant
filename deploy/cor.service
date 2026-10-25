@@ -1,0 +1,29 @@
+[Unit]
+Description=C.O.R. personal calendar service
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cor
+Group=cor-proxy
+WorkingDirectory=/opt/cor-current
+RuntimeDirectory=cor
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+ExecStartPre=/usr/bin/rm -f /run/cor/http.sock
+EnvironmentFile=/etc/cor/cor.env
+ExecStart=/opt/cor-runtime/node --import tsx server/index.ts
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

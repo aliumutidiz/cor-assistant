@@ -1,0 +1,30 @@
+# Optional local search module; no public port or paid API subscription.
+# Review and pin SEARXNG_IMAGE to a tested image tag/digest before production.
+services:
+  search:
+    image: ${SEARXNG_IMAGE:?Set a reviewed searxng/searxng image tag or digest}
+    restart: unless-stopped
+    user: "977:977"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,uid=977,gid=977,noexec,nosuid
+      - /var/cache/searxng:size=32m,uid=977,gid=977,noexec,nosuid
+    ports:
+      - "127.0.0.1:8088:8080"
+    volumes:
+      - ./deploy/searxng-settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?Generate an independent random search secret}
+      FORCE_OWNERSHIP: "false"
+      GRANIAN_HOST: "0.0.0.0"
+      GRANIAN_WORKERS: "1"
+      GRANIAN_BLOCKING_THREADS: "2"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 384m
+    cpus: 1.0
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "2"

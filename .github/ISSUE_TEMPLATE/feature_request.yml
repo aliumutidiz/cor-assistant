@@ -1,0 +1,15 @@
+name: Feature proposal
+description: Propose a focused planning or memory improvement.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Which personal planning problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior and relevant limits
+    validations:
+      required: true

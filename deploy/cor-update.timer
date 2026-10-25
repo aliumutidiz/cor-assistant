@@ -1,0 +1,12 @@
+[Unit]
+Description=Check C.O.R. GitHub main branch every minute
+
+[Timer]
+OnBootSec=90s
+OnUnitInactiveSec=60s
+RandomizedDelaySec=10s
+Persistent=true
+Unit=cor-update.service
+
+[Install]
+WantedBy=timers.target

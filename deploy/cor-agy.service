@@ -1,0 +1,34 @@
+[Unit]
+Description=C.O.R. isolated AGY console broker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=cor-agent
+Group=cor-llm
+WorkingDirectory=/var/lib/cor-agent/work
+RuntimeDirectory=cor-agy
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+ExecStart=/usr/bin/python3 /opt/cor-agent/broker.py
+Restart=on-failure
+RestartSec=5
+Environment=HOME=/var/lib/cor-agent USER=cor-agent LOGNAME=cor-agent PATH=/usr/bin:/bin XDG_RUNTIME_DIR=/var/lib/cor-agent/run
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/cor-agent /run/cor-agy
+ReadOnlyPaths=/var/lib/cor-agent/.gemini/antigravity-cli/settings.json
+InaccessiblePaths=-/etc/cor -/opt/cor -/var/lib/cor -/var/lib/cor-deploy -/var/lib/cor-fetch -/var/lib/postgresql -/var/backups/cor-deploy -/run/docker.sock -/run/containerd/containerd.sock
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+KillMode=control-group
+UMask=0077
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

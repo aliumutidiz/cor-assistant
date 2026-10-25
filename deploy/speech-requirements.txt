@@ -1,0 +1,4 @@
+# Install in a dedicated Python virtualenv. Model files are provisioned separately.
+faster-whisper>=1.2,<2
+# faster-whisper 1.2.1 passes metadata_errors, removed in PyAV 19.
+av>=14,<19

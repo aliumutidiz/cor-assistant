@@ -1,0 +1,21 @@
+# Local, disposable preview. No account, credentials or database required.
+services:
+  demo:
+    build:
+      context: .
+      target: runtime
+    ports:
+      - '127.0.0.1:5173:3001'
+    environment:
+      NODE_ENV: development
+      APP_ORIGIN: http://localhost:5173
+      LISTEN_HOST: 0.0.0.0
+      PORT: '3001'
+      DEMO_MODE: 'true'
+      AGY_ENABLED: 'false'
+      TELEGRAM_ENABLED: 'false'
+      STT_ENABLED: 'false'
+    read_only: true
+    tmpfs: ['/tmp:size=32m,noexec,nosuid']
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']

@@ -1,0 +1,12 @@
+# docker compose -f compose.yaml -f compose.voice.yaml up -d --build
+# LOCAL_WHISPER_MODEL_DIR must contain an already downloaded faster-whisper model.
+services:
+  app:
+    build:
+      target: speech
+    environment:
+      STT_ENABLED: "true"
+      STT_PYTHON: /opt/speech/bin/python
+      STT_MODEL_PATH: /models/whisper
+    volumes:
+      - ${LOCAL_WHISPER_MODEL_DIR:?Set local model directory}:/models/whisper:ro
