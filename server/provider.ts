@@ -1,3 +1,5 @@
+import { programAvailability, programDayMessage } from './program-availability.js';
+import { compareMessages } from '../shared/chat-messages.js';
 import { modelData, boundedModelRecords, boundedToolResults } from './model-context.js';
 import { baseLanguage } from '../shared/languages.js';
 import { readConversationState } from './chat-state.js';
@@ -302,6 +304,7 @@ export class AssistantService {
       if (prior.hash !== hash) throw new AppError(409, 'İstek anahtarı başka bir mesajla kullanılmış.');
       return prior.result;
     }
+    await this.store.beginConversation('chat:' + key, message);
     const preferences = {
       timeZone: 'Europe/Istanbul',
       language: 'en',
@@ -313,9 +316,14 @@ export class AssistantService {
       : undefined;
     if (direct) {
       if (signal?.aborted) throw new AppError(499, 'İstek iptal edildi.');
-      const events = await this.calendar.events('primary', direct.from, direct.to);
+      const [events, programs] = await Promise.all([
+        this.calendar.events('primary', direct.from, direct.to),
+        programAvailability(this.store, direct.from, direct.to),
+      ]);
       const result = {
-        message: calendarAnswer(events, direct.label, preferences.timeZone, preferences.language),
+        message:
+          calendarAnswer(events, direct.label, preferences.timeZone, preferences.language) +
+          programDayMessage(programs, preferences.language, preferences.timeZone),
         skill: 'calendar-read',
         deterministic: true,
       };
@@ -347,9 +355,9 @@ export class AssistantService {
       this.store.conversation(50, undefined, conversationState.contextAfter),
       this.store.recallConversation(message, conversationState.contextAfter),
     ]);
-    const archived = [
-      ...new Map([...recalledArchive, ...recentArchive].map((row) => [row.id, row])).values(),
-    ].sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0));
+    const archived = [...new Map([...recalledArchive, ...recentArchive].map((row) => [row.id, row])).values()]
+      .filter((row) => row.exchangeId !== 'chat:' + key)
+      .sort(compareMessages);
     const legacy =
       (await this.store.get<{ role: 'user' | 'assistant'; text: string }[]>('assistant.history')) ?? [];
     const history = conversationContext(
@@ -570,6 +578,7 @@ export class AssistantService {
                   ? {
                       timeZone: record.program.timeZone,
                       enabled: record.program.enabled,
+                      blocksTime: record.program.blocksTime !== false,
                       entryCount: record.program.entries.length,
                     }
                   : undefined,
@@ -617,12 +626,62 @@ export class AssistantService {
                 : await this.calendar.freebusy(r.calendarId ?? 'primary', r.from, r.to),
           });
         }
+        if ((r.kind === 'events' || r.kind === 'freebusy') && r.from && r.to) {
+          const programs = await programAvailability(this.store, r.from, r.to);
+          reads.push({
+            kind: 'program-availability',
+            data: programs.occurrences,
+            partial: programs.partial,
+            unresolved: programs.unresolved,
+            policy: programs.policy,
+          });
+        }
         continue;
       }
       if (response.action) {
         if (response.action.kind.startsWith('memory.') && prohibitsMemoryCapture(message))
           throw new AppError(400, 'Kaydetmeme isteğin nedeniyle hafızada değişiklik yapılmadı.');
         this.enforceGroup(group, response.action.kind);
+        if ('memoryId' in response.action) {
+          const action = response.action;
+          const complete = reads.some((value) => {
+            const read = value as {
+              kind: string;
+              complete?: boolean;
+              data?: { id: string; version: number }[];
+            };
+            return (
+              read.kind === 'memories' &&
+              read.complete &&
+              read.data?.some((row) => row.id === action.memoryId && row.version === action.version)
+            );
+          });
+          const visible = [
+            ...relevantMemory,
+            ...(profileMemory?.statements ?? []),
+            ...reads.flatMap((value) => {
+              const read = value as { kind: string; data?: { id: string; version: number }[] };
+              return read.kind === 'memories' && Array.isArray(read.data) ? read.data : [];
+            }),
+          ];
+          if (
+            !complete &&
+            visible.some((row) => row.id === action.memoryId && row.version === action.version)
+          ) {
+            const record = await memory.inspect(action.memoryId);
+            if (record.version !== action.version)
+              throw new AppError(
+                409,
+                'The memory record changed. Read its latest version before applying the request.',
+              );
+            reads.push({
+              kind: 'memories',
+              data: [{ ...record, source: { channel: record.source.channel } }],
+              complete: true,
+            });
+            if (action.kind === 'memory.update') continue;
+          }
+        }
         this.verifyReferences(response.action, reads, routines ? visibleRoutines.items : undefined);
         const reminderAction = response.action;
         const readReminders = reads.flatMap((r) => {

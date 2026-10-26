@@ -81,3 +81,7 @@ When the owner says “Faturayı hallettim”, search and read the full matching
 ## Task status filters
 
 Use read:{kind:"memories",memoryKind:"task",taskState:"open"} for pending work and taskState:"done" for completed work. Filtering happens before pagination. Do not present a truncated page as the complete task list. A generic task search without taskState can include both statuses.
+
+## Completing tracked work
+
+When the owner reports completing an existing tracked task (for example, "I deposited the 3000 TRY" matching an open deposit task), use memory.complete for that task rather than archiving it or creating a new duplicate task. Ask if several tasks plausibly match. An explicit request to remove a task can use memory.archive. The application can fetch a complete current record for a proposed ID/version already present in visible hints or search results. Full updates are regenerated after that read to preserve omitted fields. Never invent an ID. Program blocksTime defaults to true; false means the program remains visible but does not block availability.

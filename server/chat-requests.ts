@@ -99,6 +99,9 @@ export class ChatRequests {
       }
       const error =
         e instanceof AppError ? e.message : 'Sohbet tamamlanamadı. İşlem geçmişinden durumu kontrol et.';
+      const context = await readConversationState(this.store);
+      if (!containsCredential(message) && (!state.contextId || state.contextId === context.contextId))
+        await this.store.appendConversation('chat:web:' + id, message, error);
       await this.store.set(key, { ...state, status: 'failed', error });
       job.status = 'failed';
       job.error = error;

@@ -1,3 +1,4 @@
+import {AppError} from './errors.js';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Store } from './repositories.js';
@@ -5,6 +6,14 @@ import type { AssistantService } from './provider.js';
 import { readConversationState } from './chat-state.js';
 export function chatControlRoutes(app: FastifyInstance, store: Store, assistant: AssistantService) {
   app.get('/api/chat/context', () => readConversationState(store));
+  app.get('/api/chat/snapshot',async()=>{
+    for(let attempt=0;attempt<3;attempt++){
+      const context=await readConversationState(store);
+      const messages=await store.conversation(50,undefined,context.visibleAfter);
+      if((await readConversationState(store)).version===context.version)return {context,messages};
+    }
+    throw new AppError(409,'Conversation changed while loading. Retry the history request.');
+  });
   app.post('/api/chat/context', async (req) => {
     const input = z
       .object({

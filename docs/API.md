@@ -82,3 +82,9 @@ preferences.update accepts an optional validated BCP 47 language tag; omission p
 Model read envelopes support kind=routines with an optional query or routineId. Memory reads and GET /api/memories accept taskState=open or done, filtered before pagination. Tool results may be partial and carry explicit truncation metadata; omission never proves that a record does not exist.
 
 See [conversation controls](CONVERSATIONS.md) for context version checks, local forgetting and bounded history export.
+
+## Availability and live history
+
+GET /api/chat/snapshot returns a stable context version plus the latest 50 chronologically ordered messages. Messages expose an exchangeId for pending/reply deduplication. GET /api/chat/history keeps its ID cursor, resolved through (created_at,id) ordering. Web sessions advertise chatSync.
+
+Personal programs optionally accept blocksTime (omission means true). Calendar event/freebusy reads add program-availability evidence with source limits and DST uncertainty. See [programs](PROGRAMS.md).

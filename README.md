@@ -4,7 +4,7 @@
 <p align="center">Central Operations & Routine · Cognitive Orchestration & Response</p>
 <p align="center"><a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm_Noncommercial-blue" alt="PolyForm Noncommercial license"></a> <img src="https://img.shields.io/badge/status-early_preview-c9f62d" alt="Early preview"></p>
 
-C.O.R. is a **self-hosted personal planning assistant** that connects Google Calendar, independent reminders, scheduled briefings and durable personal memory. Use the web workspace or your own Telegram bot. Fixed reminders run without an LLM; AI is reserved for interpretation, research and briefings.
+C.O.R. Assistant is a **self-hosted personal planning assistant** that connects Google Calendar, independent reminders, scheduled briefings and durable personal memory. Use the web workspace or your own Telegram bot. Fixed reminders run without an LLM; AI is reserved for interpretation, research and briefings.
 
 This is a focused personal assistant, **not an unrestricted computer agent**. It cannot run arbitrary shell commands, install skills from chat or silently expand its permissions. Each installation belongs to one owner.
 
@@ -130,6 +130,8 @@ Browser tests start isolated demo services and do not need personal credentials.
 | `skills/`             | English bootstrap, policy and on-demand skill packages        |
 | `deploy/`, `scripts/` | Optional infrastructure, setup, diagnostics and backups       |
 | `tests/`, `e2e/`      | Security, domain, persistence and browser verification        |
+
+Recurring classes and commitments have a dedicated **Programs** workspace and are included in assistant availability checks. See [programs and timetables](docs/PROGRAMS.md).
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md), [API contracts](docs/API.md), [conversation controls](docs/CONVERSATIONS.md) and [assistant languages](docs/LANGUAGES.md). The [execution review](docs/AGENT-REVIEW-2026-10-25.md) records the latest logic fixes and verification boundaries.
 

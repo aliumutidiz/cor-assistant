@@ -50,6 +50,7 @@ export class PersonalMemory {
       untilExclusive: last,
       timeZone: record.program.timeZone,
       occurrences: programOccurrences(record.program, first, last),
+      blocksTime: record.program.blocksTime !== false,
       googleCalendarEvents: false,
       notifications: false,
     };
@@ -59,7 +60,7 @@ export class PersonalMemory {
     const records = (words ? await this.store.recall(words) : []).filter(
       (record) => !record.profile || profileIsCurrent(record.profile, record.timeZone),
     );
-    return boundedMemoryHints(records, request);
+    return boundedMemoryHints(records, request, 4000, true);
   }
   async profileContext() {
     const page = await this.search({ kind: 'profile', limit: 50 });

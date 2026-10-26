@@ -1,3 +1,5 @@
+import { useChatSync } from './chat-sync';
+import { mergeMessages, reconcileMessages } from '../shared/chat-messages';
 import { useChatDraft } from './chat-draft';
 import { ChatTools, CopyReply } from './ChatTools';
 import type { ConversationState } from '../shared/chat-controls';
@@ -79,9 +81,11 @@ const MemoryPanel = lazy(() => import('./MemoryPanel').then((module) => ({ defau
 const ConnectionSettings = lazy(() =>
   import('./ConnectionSettings').then((module) => ({ default: module.ConnectionSettings })),
 );
-type Page = 'assistant' | 'calendar' | 'routines' | 'reminders' | 'memories' | 'history' | 'settings';
+type Page =
+  'assistant' | 'calendar' | 'routines' | 'reminders' | 'memories' | 'programs' | 'history' | 'settings';
 type Message = {
   id?: string;
+  exchangeId?: string;
   role: 'assistant' | 'user';
   text: string;
   createdAt?: string;
@@ -198,6 +202,14 @@ export function App() {
   const [routineEditor, setRoutineEditor] = useState<Routine | null | undefined>();
   const [advanced, setAdvanced] = useState(false);
   const [chatContext, setChatContext] = useState<ConversationState>();
+  const contextVersion = useRef(0);
+  const acceptChatContext = useCallback((state: ConversationState) => {
+    if (state.version >= contextVersion.current) {
+      contextVersion.current = state.version;
+      setChatContext(state);
+    }
+  }, []);
+
   const reloadConversation = async () => {
     const rows = await api<Message[]>('/chat/history');
     setMessages(rows);
@@ -264,12 +276,46 @@ export function App() {
   const [prompt, setPrompt] = useState('');
   useChatDraft(s?.owner, prompt, setPrompt);
   const [chatBusy, setChatBusy] = useState(false);
+  const historySyncFailed = useChatSync(!!s?.chatSync && !historyLoading, s?.owner, (snapshot) => {
+    if (historyRequest.current || snapshot.context.version < contextVersion.current) return;
+    const changed = contextVersion.current > 0 && snapshot.context.version !== contextVersion.current;
+    acceptChatContext(snapshot.context);
+    setMessages((current) => (changed ? snapshot.messages : reconcileMessages(current, snapshot.messages)));
+    setOlderBefore((current) =>
+      changed
+        ? snapshot.messages.length === 50
+          ? snapshot.messages[0].id
+          : undefined
+        : (current ?? (snapshot.messages.length === 50 ? snapshot.messages[0].id : undefined)),
+    );
+  });
+
   const chatAbort = useRef<AbortController | null>(null);
   const activeChatRequest = useRef<string | undefined>(undefined);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const calendarScroll = useRef<HTMLDivElement>(null);
   const zone = s?.preferences.timeZone ?? 'Europe/Istanbul';
   const selectedDay = dateKey(date, zone);
+  const centerCurrentTime = useCallback(
+    (behavior: ScrollBehavior = 'auto') => {
+      const node = calendarScroll.current;
+      if (!node) return;
+      const [hour, minute] = dateTimeInput(new Date(), zone).slice(11).split(':').map(Number);
+      const column = node.querySelector<HTMLElement>('.day-column');
+      const offset = column?.offsetTop ?? 0;
+      node.scrollTo({
+        top: Math.max(0, offset + (hour + minute / 60) * 56 - node.clientHeight / 2),
+        behavior,
+      });
+    },
+    [zone],
+  );
+  useEffect(() => {
+    if (page !== 'calendar' || !['day', 'week'].includes(view) || loading) return;
+    const frame = requestAnimationFrame(() => centerCurrentTime());
+    return () => cancelAnimationFrame(frame);
+  }, [page, view, selectedDay, loading, centerCurrentTime]);
+
   const movePeriod = (direction: number) => {
     const next = new Date(selectedDay + 'T12:00:00Z');
     if (view === 'month') {
@@ -440,7 +486,11 @@ export function App() {
       if (action === 'approve')
         setMessages((m) => [
           ...m,
-          { role: 'assistant', text: operationMessage(operation, zone, s?.preferences.language ?? 'en') },
+          {
+            role: 'assistant',
+            createdAt: new Date().toISOString(),
+            text: operationMessage(operation, zone, s?.preferences.language ?? 'en'),
+          },
         ]);
       await refresh();
     } catch (e) {
@@ -461,13 +511,16 @@ export function App() {
     e?.preventDefault();
     const message = value ?? prompt;
     if (!message.trim() || chatBusy || historyLoading || historyError) return;
+    const requestId = crypto.randomUUID();
+    const exchangeId = 'chat:web:' + requestId;
     setPrompt('');
     setChatOpen(true);
     stickToLatest.current = true;
-    setMessages((m) => [...m, { role: 'user', text: message }]);
+    setMessages((m) =>
+      mergeMessages(m, [{ role: 'user', text: message, exchangeId, createdAt: new Date().toISOString() }]),
+    );
     setChatBusy(true);
     chatAbort.current = new AbortController();
-    const requestId = crypto.randomUUID();
     activeChatRequest.current = requestId;
     if (s?.asyncChat) pendingChat(s.owner, requestId);
     try {
@@ -479,13 +532,16 @@ export function App() {
         chatContext?.contextId,
       );
       if (s?.asyncChat) pendingChat(s.owner, null);
-      setMessages((m) => [
-        ...m,
-        {
-          role: 'assistant',
-          text: response.message,
-        },
-      ]);
+      setMessages((m) =>
+        mergeMessages(m, [
+          {
+            role: 'assistant',
+            exchangeId,
+            createdAt: new Date().toISOString(),
+            text: response.message,
+          },
+        ]),
+      );
       await refresh();
       if (response.operation?.status === 'awaiting_approval') setPage('history');
     } catch (e) {
@@ -495,6 +551,8 @@ export function App() {
         ...m,
         {
           role: 'assistant',
+          exchangeId,
+          createdAt: new Date().toISOString(),
           text:
             (e as Error).name === 'AbortError'
               ? 'Stopped waiting for the reply. The saved request may still run; check history before resending.'
@@ -504,6 +562,7 @@ export function App() {
     } finally {
       activeChatRequest.current = undefined;
       setChatBusy(false);
+      window.dispatchEvent(new Event('cor:chat-refresh'));
     }
   };
   const resumedChat = useRef<string | undefined>(undefined);
@@ -520,10 +579,7 @@ export function App() {
         pendingChat(s.owner, null);
         const rows = await api<Message[]>('/chat/history');
         if (abort.signal.aborted) return;
-        setMessages((previous) => {
-          const oldest = rows[0]?.id;
-          return [...previous.filter((row) => row.id && oldest && BigInt(row.id) < BigInt(oldest)), ...rows];
-        });
+        setMessages((previous) => reconcileMessages(previous, rows));
         setOlderBefore(rows.length === 50 ? rows[0].id : undefined);
         if (response.operation?.status === 'awaiting_approval') setPage('history');
         await refresh();
@@ -627,6 +683,7 @@ export function App() {
               { id: 'reminders', label: 'Reminders', icon: Bell },
               { id: 'routines', label: 'Routines', icon: Lightning },
               { id: 'memories', label: 'Memory', icon: Notebook },
+              { id: 'programs', label: 'Programs', icon: CalendarBlank },
               { id: 'history', label: 'Activity', icon: Clock },
               { id: 'settings', label: 'Settings', icon: Gear },
             ] as const
@@ -678,6 +735,7 @@ export function App() {
                   reminders: 'Reminders',
                   routines: 'Routines',
                   memories: 'Memory',
+                  programs: 'Programs',
                   history: 'Activity',
                   settings: 'Settings',
                 }[page]
@@ -705,7 +763,8 @@ export function App() {
                       calendar: 'Calendar',
                       reminders: 'Reminders',
                       routines: 'Routines',
-                      memories: 'Memory, programs and lists',
+                      memories: 'Memory',
+                      programs: 'Programs',
                       history: 'Activity',
                       settings: 'Settings',
                     }[page]
@@ -873,7 +932,10 @@ export function App() {
                           .split(':')
                           .map(Number);
                         calendarScroll.current?.scrollTo({
-                          top: Math.max(0, (hour + minute / 60) * 56 - 56),
+                          top: Math.max(
+                            0,
+                            (hour + minute / 60) * 56 - (calendarScroll.current?.clientHeight ?? 0) / 2,
+                          ),
                           behavior: 'smooth',
                         });
                       }}
@@ -1446,7 +1508,7 @@ export function App() {
               }
             />
           )}
-          {page === 'memories' && (
+          {(page === 'memories' || page === 'programs') && (
             <Suspense
               fallback={
                 <p className="muted" role="status">
@@ -1455,6 +1517,8 @@ export function App() {
               }
             >
               <MemoryPanel
+                key={page}
+                mode={page === 'programs' ? 'programs' : 'memory'}
                 perform={perform}
                 operations={operations}
                 timeZone={s.preferences.timeZone}
@@ -1470,8 +1534,8 @@ export function App() {
       >
         <ChatTools
           key={s.owner}
-          busy={chatBusy || historyLoading}
-          onContext={setChatContext}
+          busy={chatBusy || historyLoading || olderLoading}
+          onContext={acceptChatContext}
           onChanged={reloadConversation}
         />
         <div className="assistant-heading">
@@ -1504,6 +1568,17 @@ export function App() {
           >
             Open full conversation <ArrowRight size={15} />
           </button>
+        )}
+        {historySyncFailed && (
+          <div className="history-sync-status" role="status">
+            Conversation updates paused.{' '}
+            <button
+              className="text-button"
+              onClick={() => window.dispatchEvent(new Event('cor:chat-refresh'))}
+            >
+              Retry
+            </button>
+          </div>
         )}
         {historyError && (
           <div className="error-banner" role="alert">
@@ -1572,10 +1647,7 @@ export function App() {
                     const view = messagesViewport.current;
                     if (view) prependHeight.current = { height: view.scrollHeight, top: view.scrollTop };
                     stickToLatest.current = false;
-                    setMessages((current) => {
-                      const ids = new Set(current.map((m) => m.id).filter(Boolean));
-                      return [...rows.filter((m) => !m.id || !ids.has(m.id)), ...current];
-                    });
+                    setMessages((current) => mergeMessages(rows, current));
                     setOlderBefore(rows.length === 50 ? rows[0].id : undefined);
                   } catch (e) {
                     setError((e as Error).message);

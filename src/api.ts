@@ -1,5 +1,6 @@
 export type Session = {
   asyncChat?: boolean;
+  chatSync?: boolean;
   csrf: string;
   demo: boolean;
   owner: string;

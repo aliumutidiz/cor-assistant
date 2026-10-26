@@ -18,7 +18,7 @@ function setup(outputs: unknown[] = []) {
   const store = new MemoryStore(),
     calendar = new DemoCalendar();
   const operations = new OperationService(store, calendar, new RoutineService(store));
-  const generate = vi.fn(async () => ({ output: outputs.shift() }));
+  const generate = vi.fn(async (_prompt: string) => ({ output: outputs.shift() }));
   return {
     store,
     operations,
@@ -128,7 +128,9 @@ describe('personal memory', () => {
       memoryOperation.parse({ kind: 'memory.create', memoryId: crypto.randomUUID(), record: input }),
     ).toThrow();
     const h = setup();
-    await expect(h.assistant.chat('Anahtarım GOCSPX-' + 'private-fixture', 'blocked-key')).rejects.toMatchObject({
+    await expect(
+      h.assistant.chat('Anahtarım GOCSPX-' + 'private-fixture', 'blocked-key'),
+    ).rejects.toMatchObject({
       status: 400,
     });
     expect(h.generate).not.toHaveBeenCalled();
@@ -190,7 +192,7 @@ describe('personal memory', () => {
     await h.operations.execute(restore.id);
     expect((await h.memory.search({ query: 'kulaklık' })).items[0].version).toBe(4);
   });
-  it('cannot update from a summary preview without reading the full current record', async () => {
+  it('reads the full current record and regenerates a summary-based update', async () => {
     const h = setup();
     const op = await h.operations.submit({ kind: 'memory.create', record: input }, 'seed');
     await h.operations.execute(op.id);
@@ -206,9 +208,24 @@ describe('personal memory', () => {
           action: { kind: 'memory.update', memoryId: op.id, version: 1, record: input },
         },
       });
-    await expect(
-      h.assistant.chat('Kulaklık kaydını güncelle', 'update-without-full-read'),
-    ).rejects.toMatchObject({ status: 409 });
+    h.generate.mockResolvedValueOnce({
+      output: {
+        message: 'Update after full read',
+        action: {
+          kind: 'memory.update',
+          memoryId: op.id,
+          version: 1,
+          record: { ...input, summary: 'Updated summary' },
+        },
+        read: null,
+      },
+    });
+    const reply = (await h.assistant.chat('Kulaklık kaydını güncelle', 'update-without-full-read')) as {
+      operation: { status: string };
+    };
+    expect(reply.operation.status).toBe('succeeded');
+    expect(h.generate.mock.calls.at(-1)?.[0]).toContain('"complete":true');
+    expect((await h.memory.inspect(op.id)).body).toBe(input.body);
   });
   it('honors an explicit do-not-save instruction even if the model proposes a write', async () => {
     const h = setup([

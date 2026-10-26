@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import type { PersonalProgram } from '../shared/personal-resources';
 import { Plus, X } from '@phosphor-icons/react';
 import type { MemoryInput, MemoryRecord } from '../shared/memory';
 import { programOccurrences } from '../shared/personal-resources';
@@ -20,6 +22,7 @@ export function resourceDefaults(kind: MemoryInput['kind'], zone: string): Resou
       program: {
         timeZone: zone,
         enabled: true,
+        blocksTime: true,
         from: null,
         until: null,
         excludedDates: [],
@@ -98,6 +101,18 @@ export function ResourceFields({
             Program active
           </label>
           <label>
+            <input
+              type="checkbox"
+              checked={program.blocksTime !== false}
+              onChange={(e) => onChange({ program: { ...program, blocksTime: e.target.checked } })}
+            />{' '}
+            Include in availability
+          </label>
+          <small>
+            When enabled, these activities count as busy time alongside your calendar. No Google events or
+            notifications are created.
+          </small>
+          <label>
             Time zone
             <input
               required
@@ -123,6 +138,7 @@ export function ResourceFields({
               />
             </label>
           </div>
+          <SkippedDates program={program} onChange={(next) => onChange({ program: next })} />
           {program.entries.map((entry) => {
             const update = (patch: Partial<typeof entry>) =>
               onChange({
@@ -411,7 +427,8 @@ export function ResourcePreview({
       {program && (
         <div className="program-preview">
           <small>
-            {program.enabled ? 'Next 7 days' : 'Program paused'} · {program.timeZone}
+            {program.enabled ? 'Next 7 days' : 'Program paused'} · {program.timeZone} ·{' '}
+            {program.blocksTime === false ? 'Does not block time' : 'Included in availability'}
           </small>
           {programOccurrences(program, today, until)
             .slice(0, 14)
@@ -427,5 +444,49 @@ export function ResourcePreview({
         </div>
       )}
     </>
+  );
+}
+
+function SkippedDates({
+  program,
+  onChange,
+}: {
+  program: PersonalProgram;
+  onChange: (value: PersonalProgram) => void;
+}) {
+  const [day, setDay] = useState('');
+  return (
+    <div className="program-exclusions">
+      <label>
+        Skip a date
+        <input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+      </label>
+      <button
+        type="button"
+        className="button subtle"
+        disabled={!day || program.excludedDates.length >= 366}
+        onClick={() => {
+          onChange({ ...program, excludedDates: [...new Set([...program.excludedDates, day])].sort() });
+          setDay('');
+        }}
+      >
+        Add skipped date
+      </button>
+      <div className="memory-tags">
+        {program.excludedDates.map((date) => (
+          <button
+            className="text-button"
+            key={date}
+            type="button"
+            aria-label={'Remove skipped date ' + date}
+            onClick={() =>
+              onChange({ ...program, excludedDates: program.excludedDates.filter((value) => value !== date) })
+            }
+          >
+            {date} ×
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

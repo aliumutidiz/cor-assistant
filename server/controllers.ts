@@ -41,6 +41,7 @@ export class ApiController extends BaseController {
       googleConnected: await this.calendar.connected(),
       agyEnabled: this.config.AGY_ENABLED,
       asyncChat: true,
+      chatSync: true,
       telegram: {
         delivery: await this.store.get('telegram.delivery'),
         enabled: this.config.TELEGRAM_ENABLED,

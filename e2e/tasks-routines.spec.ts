@@ -67,7 +67,7 @@ test('completes a task into history and creates an explicit AI report with its f
   await expect(page.getByRole('button', { name: 'Mark complete', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Mark complete', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Faturayı öde', exact: true })).toHaveCount(0);
-  await page.getByLabel('Archived / completed', { exact: true }).check();
+  await page.getByRole('button',{name:'Archive',exact:true}).click();
   await expect(page.getByText('Completed', { exact: true })).toBeVisible();
   expect(writes[1]).toMatchObject({ kind: 'memory.complete', version: 1 });
   await page.getByRole('button', { name: 'Routines', exact: true }).click();

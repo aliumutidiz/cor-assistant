@@ -18,23 +18,27 @@ export function MemoryPanel({
   revision,
   timeZone,
   operations,
+  mode = 'memory',
 }: {
   perform: (a: OperationInput) => Promise<Operation | undefined>;
   revision: string;
   timeZone: string;
   operations: Operation[];
+  mode?: 'memory' | 'programs';
 }) {
   const [query, setQuery] = useState(''),
-    [kind, setKind] = useState(''),
+    [kind, setKind] = useState(mode === 'programs' ? 'program' : ''),
     [archived, setArchived] = useState(false);
   const [page, setPage] = useState<MemoryPage>({ items: [] });
   const [editor, setEditor] = useState<MemoryRecord | null | undefined>();
   const [selected, setSelected] = useState<MemoryRecord>();
   const [versions, setVersions] = useState<MemoryRecord[]>([]);
-  const [loading, setLoading] = useState(false),
+  const [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [note, setNote] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const [status, setStatus] = useState<'active' | 'done' | 'archived'>('active');
+  const [layout, setLayout] = useState<'list' | 'cards'>('list');
   const [pending, setPending] = useState<string>();
   const [toggling, setToggling] = useState<string>();
   const selectedRequest = useRef(0);
@@ -55,8 +59,15 @@ export function MemoryPanel({
   }, [operations, pending]);
   const epoch = useRef(0);
   const path =
-    '/memories?' + new URLSearchParams({ query, ...(kind ? { kind } : {}), archived: String(archived) });
+    '/memories?' +
+    new URLSearchParams({
+      query,
+      ...(kind ? { kind } : {}),
+      ...(status === 'done' ? { kind: 'task', taskState: 'done' } : {}),
+      archived: String(archived),
+    });
   useEffect(() => {
+    setLoading(true);
     const current = ++epoch.current,
       cancel = new AbortController();
     const timer = setTimeout(() => {
@@ -79,16 +90,47 @@ export function MemoryPanel({
     };
   }, [path, revision, refresh]);
   return (
-    <section className="memory-panel">
+    <section className={'memory-panel ' + (mode === 'programs' ? 'programs-workspace' : '')}>
+      <div className="memory-viewbar">
+        <div className="segmented" aria-label="Record status">
+          {(['active', ...(mode === 'memory' ? ['done'] : []), 'archived'] as const).map((value) => (
+            <button
+              key={value}
+              className={status === value ? 'selected' : ''}
+              onClick={() => {
+                setStatus(value as typeof status);
+                if (value === 'done') setKind('task');
+                setArchived(value !== 'active');
+              }}
+            >
+              {value === 'active' ? 'Active' : value === 'done' ? 'Completed tasks' : 'Archive'}
+            </button>
+          ))}
+        </div>
+        <div className="segmented" aria-label="Record layout">
+          <button aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>
+            List
+          </button>
+          <button aria-pressed={layout === 'cards'} onClick={() => setLayout('cards')}>
+            Cards
+          </button>
+        </div>
+      </div>
+
       <div className="memory-toolbar">
         <input
           aria-label="Search records"
-          placeholder="Search ideas, products or facts…"
+          placeholder={mode === 'programs' ? 'Search your programs…' : 'Search your memory…'}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           maxLength={200}
         />
-        <select aria-label="Filter record type" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <select
+          disabled={mode === 'programs'}
+          aria-label="Filter record type"
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+        >
           <option value="">All records</option>
           {Object.entries(labels).map(([value, label]) => (
             <option key={value} value={value}>
@@ -96,20 +138,18 @@ export function MemoryPanel({
             </option>
           ))}
         </select>
-        <label className="memory-check">
-          <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
-          Archived / completed
-        </label>
         <button className="icon-button" aria-label="Refresh records" onClick={() => setRefresh((v) => v + 1)}>
           <ArrowsClockwise size={18} />
         </button>
         <button className="button primary" onClick={() => setEditor(null)}>
           <Plus size={16} />
-          Add record
+          {mode === 'programs' ? 'Add program' : 'Add record'}
         </button>
       </div>
       <p className="muted small">
-        Your profile, programs and lists are stored here. Search and schedule calculation run without an LLM.
+        {mode === 'programs'
+          ? 'Weekly classes, monthly commitments and reusable schedules. Active programs are included when checking your availability.'
+          : 'Your saved ideas, tasks, facts and lists. Open a record to see its source and changes.'}
       </p>
       <a className="text-button" href="/api/brain/export" download>
         Export memory as JSON
@@ -124,12 +164,12 @@ export function MemoryPanel({
           {note}
         </p>
       )}
-      <div className="memory-grid" aria-busy={loading}>
+      <div className={'memory-grid memory-' + layout} aria-busy={loading}>
         {page.items.map((record) => (
           <article className="memory-card" key={record.id}>
             <div className="operation-top">
               <span className="pill">{labels[record.kind]}</span>
-              <small>{formatDate(record.createdAt, timeZone)}</small>
+              <small>{formatDate(record.updatedAt, timeZone)}</small>
             </div>
             <button
               className="memory-title"
@@ -147,7 +187,9 @@ export function MemoryPanel({
             >
               {record.title}
             </button>
-            <p>{record.summary || record.body.slice(0, 240)}</p>
+            <p className="memory-excerpt" dir="auto">
+              {record.summary || record.body.slice(0, 240)}
+            </p>
             <ResourcePreview
               record={record}
               busy={!!toggling}
@@ -443,7 +485,9 @@ function MemoryEditor({
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
         <Dialog.Content className="modal-content">
-          <Dialog.Title>{record ? 'Edit record' : 'Add personal record'}</Dialog.Title>
+          <Dialog.Title>
+            {record ? 'Edit record' : initialKind === 'program' ? 'Create program' : 'Add personal record'}
+          </Dialog.Title>
           <Dialog.Description>
             Leave unknown dates or amounts empty. The recording time is automatic.
           </Dialog.Description>
@@ -461,7 +505,7 @@ function MemoryEditor({
                   ...resources,
                   kind,
                   title,
-                  body,
+                  body: body.trim() || (kind === 'program' ? 'Recurring schedule: ' + title : body),
                   summary,
                   tags: [
                     ...new Set(
@@ -520,10 +564,10 @@ function MemoryEditor({
               <input required maxLength={300} value={title} onChange={(e) => setTitle(e.target.value)} />
             </label>
             <label>
-              Original content
+              {kind === 'program' ? 'Notes (optional)' : 'Original content'}
               <textarea
-                required
-                rows={5}
+                required={kind !== 'program'}
+                rows={kind === 'program' ? 2 : 5}
                 maxLength={10000}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}

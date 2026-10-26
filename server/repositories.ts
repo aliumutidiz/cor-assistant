@@ -1,3 +1,4 @@
+import { compareMessages } from '../shared/chat-messages.js';
 import {
   initialConversationState,
   type ConversationState,
@@ -30,6 +31,7 @@ function memoryBounds(record: MemoryRecord) {
 }
 export type ConversationMessage = {
   id: string;
+  exchangeId?: string;
   role: 'user' | 'assistant';
   text: string;
   createdAt: string;
@@ -49,6 +51,7 @@ export interface Store {
   conversation(limit?: number, before?: string, after?: string): Promise<ConversationMessage[]>;
   recallConversation(query: string, after?: string): Promise<ConversationMessage[]>;
   changeConversation(input: ConversationChange): Promise<ConversationState>;
+  beginConversation(key: string, user: string): Promise<void>;
   appendConversation(key: string, user: string, assistant: string): Promise<void>;
   get<T>(key: string): Promise<T | undefined>;
   set(key: string, value: unknown): Promise<void>;
@@ -275,27 +278,47 @@ export class MemoryStore implements Store {
   async conversation(limit = 50, before?: string, after = '0') {
     return structuredClone(
       this.conversationRows
-        .filter((m) => BigInt(m.id) > BigInt(after) && (!before || BigInt(m.id) < BigInt(before)))
+        .filter(
+          (m) =>
+            BigInt(m.id) > BigInt(after) &&
+            (!before || compareMessages(m, this.conversationRows.find((row) => row.id === before) ?? m) < 0),
+        )
+        .sort(compareMessages)
         .slice(-Math.min(500, Math.max(1, limit))),
     );
   }
+  async beginConversation(key: string, user: string) {
+    if (
+      this.conversationKeys.has(key) ||
+      this.conversationRows.some((row) => row.exchangeId === key && row.role === 'user')
+    )
+      return;
+    const id = String(++this.conversationSequence);
+    this.conversationRequests.set(id, key);
+    this.conversationRows.push({
+      id,
+      exchangeId: key,
+      role: 'user',
+      text: user,
+      createdAt: new Date().toISOString(),
+      channel: key.includes('telegram:') ? 'telegram' : key.includes('web:') ? 'web' : 'legacy',
+    });
+  }
   async appendConversation(key: string, user: string, assistant: string) {
     if (this.conversationKeys.has(key)) return;
+    await this.beginConversation(key, user);
+    if (this.conversationKeys.has(key)) return;
     this.conversationKeys.add(key);
-    const start = this.conversationSequence;
-    this.conversationRequests.set(String(start + 1), key);
-    this.conversationRequests.set(String(start + 2), key);
-    for (const [role, text] of [
-      ['user', user],
-      ['assistant', assistant],
-    ] as const)
-      this.conversationRows.push({
-        id: String(++this.conversationSequence),
-        role,
-        text,
-        createdAt: new Date().toISOString(),
-        channel: key.includes('telegram:') ? 'telegram' : key.includes('web:') ? 'web' : 'legacy',
-      });
+    const id = String(++this.conversationSequence);
+    this.conversationRequests.set(id, key);
+    this.conversationRows.push({
+      id,
+      exchangeId: key,
+      role: 'assistant',
+      text: assistant,
+      createdAt: new Date().toISOString(),
+      channel: key.includes('telegram:') ? 'telegram' : key.includes('web:') ? 'web' : 'legacy',
+    });
   }
   private kv = new Map<string, unknown>();
   private transient = new Map<string, { value: unknown; expires: string }>();
@@ -423,6 +446,7 @@ export class PostgresStore implements Store {
       )
     ).rows.map((row) => ({
       id: row.id,
+      exchangeId: row.request_key.replace(/:(user|assistant)$/, ''),
       role: row.role,
       text: row.text,
       createdAt: new Date(row.created_at).toISOString(),
@@ -631,12 +655,13 @@ export class PostgresStore implements Store {
   async conversation(limit = 50, before?: string, after = '0') {
     const rows = (
       await this.pool.query(
-        'SELECT id::text,role,text,created_at,request_key FROM conversation_messages WHERE ($1::bigint IS NULL OR id < $1::bigint) AND id>$3::bigint ORDER BY id DESC LIMIT $2',
+        'SELECT id::text,role,text,created_at,request_key FROM conversation_messages WHERE ($1::bigint IS NULL OR (created_at,id)<(SELECT created_at,id FROM conversation_messages WHERE id=$1::bigint)) AND id>$3::bigint ORDER BY created_at DESC,id DESC LIMIT $2',
         [before ?? null, Math.min(500, Math.max(1, limit)), after],
       )
     ).rows.reverse();
     return rows.map((r) => ({
       id: String(r.id),
+      exchangeId: r.request_key.replace(/:(user|assistant)$/, ''),
       role: r.role,
       text: r.text,
       createdAt: new Date(r.created_at).toISOString(),
@@ -646,6 +671,12 @@ export class PostgresStore implements Store {
           ? 'web'
           : 'legacy',
     })) as ConversationMessage[];
+  }
+  async beginConversation(key: string, user: string) {
+    await this.pool.query(
+      "INSERT INTO conversation_messages(request_key,role,text) VALUES($1,'user',$2) ON CONFLICT(request_key) DO NOTHING",
+      [key + ':user', user],
+    );
   }
   async appendConversation(key: string, user: string, assistant: string) {
     await this.pool.query(

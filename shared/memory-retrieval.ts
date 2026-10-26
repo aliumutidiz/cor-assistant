@@ -6,6 +6,9 @@ const stop = new Set(
     .map(foldMemoryText),
 );
 export function memoryTerms(request: string) {
+  request = request.replace(/\b(\d{1,9}(?:[.,]\d{1,2})?)\s*k(?=\s|[.!?,]|$)/gi, (_match, value: string) =>
+    String(Number(value.replace(',', '.')) * 1000),
+  );
   return [...new Set((request.match(/[\p{L}\p{N}]{3,}/gu) ?? []).map(foldMemoryText))]
     .filter((term) => !stop.has(term))
     .slice(0, 12);
@@ -25,11 +28,16 @@ export function memoryScore(record: MemoryRecord, terms: string[]) {
     0,
   );
 }
-export function boundedMemoryHints(records: MemoryRecord[], request: string, budget = 4000) {
+export function boundedMemoryHints(
+  records: MemoryRecord[],
+  request: string,
+  budget = 4000,
+  includeRepositoryMatches = false,
+) {
   const terms = memoryTerms(request);
   const ranked = records
     .map((record) => ({ record, score: memoryScore(record, terms) }))
-    .filter((hit) => hit.score > 0)
+    .filter((hit) => hit.score > 0 || includeRepositoryMatches)
     .sort((a, b) => b.score - a.score || b.record.updatedAt.localeCompare(a.record.updatedAt));
   const result: {
     id: string;
@@ -41,6 +49,8 @@ export function boundedMemoryHints(records: MemoryRecord[], request: string, bud
     recordedAt: string;
     updatedAt: string;
     truncated: boolean;
+    taskState?: 'open' | 'done';
+    remindAt?: string | null;
   }[] = [];
   let used = 2;
   for (const { record: r } of ranked) {
@@ -50,6 +60,7 @@ export function boundedMemoryHints(records: MemoryRecord[], request: string, bud
       id: r.id,
       version: r.version,
       kind: r.kind,
+      ...(r.kind === 'task' ? { taskState: r.taskState ?? 'open', remindAt: r.remindAt } : {}),
       title: r.title,
       summary: original.slice(0, 500),
       source: r.source.channel,

@@ -21,6 +21,7 @@ describe('HTTP security boundaries', () => {
     const { cookie, csrf } = await setup();
     for (const url of [
       '/api/chat/context',
+      '/api/chat/snapshot',
       '/api/chat/export',
       '/api/memories',
       '/api/brain/export',

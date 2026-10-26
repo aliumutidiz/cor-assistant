@@ -60,3 +60,7 @@ Surface authentication, quota, validation, version conflict and unknown-result s
 ## References
 
 See ../POLICY.md for shared date, safety and verification examples. Load only the relevant section when needed; do not inject every skill into each request.
+
+## Personal program availability
+
+Calendar event/freebusy reads automatically include a separate program-availability result for active weekly/monthly personal schedules, including class timetables. Combine both sources when answering whether the owner is free. Only program entries with blocksTime=true occupy time. Never equate an empty primary calendar with a free day when programs are present. Partial or unresolved schedule data cannot prove availability. Identify the calendar scope, exact timezone and any missing data. Programs are virtual occurrences, not Google events.

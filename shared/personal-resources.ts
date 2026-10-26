@@ -35,6 +35,7 @@ export const personalProgram = z
         }
       }),
     enabled: z.boolean().default(true),
+    blocksTime: z.boolean().optional(),
     from: z.iso.date().nullable().default(null),
     until: z.iso.date().nullable().default(null),
     excludedDates: z.array(z.iso.date()).max(366).default([]),

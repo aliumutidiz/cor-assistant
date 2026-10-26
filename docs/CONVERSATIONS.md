@@ -21,3 +21,11 @@ The database remains the source of truth. Context watermarks exclude earlier mes
 Local forgetting does **not** erase Telegram messages, provider-side conversation history, backups, saved memory items or the operation journal. Review the separate Memory screen to edit or archive stored personal facts. This feature is not a complete personal-data erasure request. No model call is required for these controls.
 
 PostgreSQL applies state changes, selected message removal, cached reply tombstones and completed request payload scrubbing in one statement. Idempotency metadata is retained so retrying a removed request does not repeat its original action. The in-memory demo provides matching control semantics but is disposable.
+
+## Timeline reliability
+
+History pages use chronological (created_at, id) ordering and an index-backed cursor. The cursor remains a message ID but is resolved to its timestamp for pagination; insertion order alone cannot move an imported older message below newer conversation.
+
+The session advertises chatSync. The browser refreshes an authenticated snapshot every 15 seconds while visible and on focus/visibility changes. Snapshot context versions prevent stale resets from overwriting a newer conversation. Exchange IDs deduplicate local pending messages against stored replies. Reading earlier history preserves the scroll anchor.
+
+Generation records the user message before calling the model. Terminal web failures are archived with their actual error result. The migration can recover eligible failed web requests still present in the durable journal, while excluding removal tombstones, scrubbed payloads, sensitive content and requests from a different current context. This cannot reconstruct unrecorded content or provider/Telegram-only messages that were never received.

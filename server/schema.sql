@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
   text text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS conversation_chronology_idx ON conversation_messages(created_at DESC,id DESC);
 INSERT INTO conversation_messages(request_key, role, text)
 SELECT 'legacy:' || item.ordinality, item.value->>'role', item.value->>'text'
 FROM kv CROSS JOIN LATERAL jsonb_array_elements(
@@ -28,6 +29,24 @@ FROM kv CROSS JOIN LATERAL jsonb_array_elements(
 ) WITH ORDINALITY AS item(value, ordinality)
 WHERE kv.key='assistant.history' AND item.value->>'role' IN ('user','assistant')
 AND item.value->>'text' IS NOT NULL
+ON CONFLICT(request_key) DO NOTHING;
+
+-- Recover historical failed web exchanges that were journaled but not archived.
+-- Removal tombstones and scrubbed payloads are deliberately excluded.
+INSERT INTO conversation_messages(request_key,role,text,created_at)
+SELECT 'chat:web:'||(j.data#>>'{payload,chatRequest,id}')||':'||entry.role,entry.role,entry.text,entry.at
+FROM jobs j JOIN kv k ON k.key='assistant.request:'||(j.data#>>'{payload,chatRequest,id}')
+CROSS JOIN LATERAL (VALUES
+ ('user',j.data#>>'{payload,chatRequest,message}',j.scheduled_at),
+ ('assistant',k.value->>'error',COALESCE((j.data->>'finishedAt')::timestamptz,j.scheduled_at))
+) AS entry(role,text,at)
+WHERE j.data->>'kind'='assistant' AND k.value->>'status'='failed'
+AND COALESCE(k.value->>'error','')<>''
+AND k.value->>'error'<>'This reply was removed from local chat history.'
+AND COALESCE(k.value->>'contextId','initial')=COALESCE((SELECT value->>'contextId' FROM kv WHERE key='conversation.state'),'initial')
+AND COALESCE(j.data#>>'{payload,chatRequest,message}','') NOT IN ('','[Removed from chat history]')
+AND (j.data#>>'{payload,chatRequest,message}') !~ '(GOCSPX-|AIza|PRIVATE KEY|[0-9]{7,12}:[A-Za-z0-9_-]{30,})'
+AND entry.text IS NOT NULL
 ON CONFLICT(request_key) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS memory_items (
