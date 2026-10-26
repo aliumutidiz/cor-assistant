@@ -19,3 +19,13 @@ Each request spans at most 93 days and inspects at most 100 active-source record
 Reporting that a tracked task is done is different from asking to remove it. A completion uses `memory.complete`, records `taskState=done`, preserves history and suppresses its pending reminders. An explicit removal may archive the record without claiming the work was completed.
 
 A model-proposed ID/version already present in visible memory hints or search results can trigger a server-side full-record read. Completion/archive/restore still validate the current version before execution. Full updates are regenerated after that read to preserve omitted fields. Unknown IDs are rejected; conflicting matches require clarification. Common numeric shorthand such as `7.5k` is expanded for memory retrieval, and trusted repository full-text matches are not discarded merely because a second literal scorer lacks the same stemming.
+
+## Conversation routing and corrections
+
+The dedicated program-management skill handles class timetables and reusable weekly/monthly schedules. An ordinary weekday class statement uses a weekly program by default; an explicit one-off or Google Calendar request remains on the calendar path. Conservative Turkish/English capability hints cover common unambiguous forms, while the model router handles other languages. Capability hints never authorize a write.
+
+A current, bounded program index is supplied before generation. A complete empty index permits creating the first requested timetable immediately. Existing entries are read in full before updates; unrelated entries, IDs, dates and exclusions are preserved. The program-specific response schema excludes calendar operations, non-program records and task completion. Runtime record-kind/version checks remain authoritative.
+
+Corrections such as "not in my calendar; add it to my timetable" reuse the owner's original weekday and times. An earlier erroneous assistant-resolved future date does not become a program term date. The program change is separate from any existing Google event: no automatic deletion or implied move is performed.
+
+Identical reads are reused. One bounded pure-model recovery can resolve a repeated search; if the model still cannot select a program, the result is a focused clarification rather than a generic narrower-search failure. This does not retry application writes or silently pick an ambiguous program.

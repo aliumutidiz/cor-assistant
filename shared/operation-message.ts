@@ -73,8 +73,13 @@ export function operationMessage(op: Operation, timeZone = 'Europe/Istanbul', la
     'memory.create':
       memory?.kind === 'task'
         ? 'Görev listene kaydettim.'
-        : 'Kişisel hafızana kaydettim. Kayıtlarım ekranından ayrıntıları görebilirsin.',
-    'memory.update': 'Hafıza kaydını güncelledim; önceki sürüm geçmişte korunuyor.',
+        : memory?.kind === 'program'
+          ? 'Programına kaydettim.'
+          : 'Kişisel hafızana kaydettim. Kayıtlarım ekranından ayrıntıları görebilirsin.',
+    'memory.update':
+      memory?.kind === 'program'
+        ? 'Programını güncelledim.'
+        : 'Hafıza kaydını güncelledim; önceki sürüm geçmişte korunuyor.',
     'memory.complete': 'Görevi tamamlandı olarak işaretledim. Açık görevlerden kaldırdım; geçmişi korunuyor.',
     'memory.archive': 'Kaydı arşivledim; aktif hafıza aramalarında kullanmayacağım.',
     'memory.restore': 'Kaydı arşivden geri getirdim.',
@@ -157,8 +162,11 @@ function englishOperationMessage(op: Operation, timeZone: string) {
     'reminder.update': 'Updated your reminder.',
     'reminder.cancel': 'Canceled your reminder.',
     'preferences.update': 'Saved your preferences.',
-    'memory.create': 'Saved to your personal memory.',
-    'memory.update': 'Updated your memory record; the previous version is preserved.',
+    'memory.create': record?.kind === 'program' ? 'Saved your program.' : 'Saved to your personal memory.',
+    'memory.update':
+      record?.kind === 'program'
+        ? 'Updated your program.'
+        : 'Updated your memory record; the previous version is preserved.',
     'memory.complete': 'Marked the task complete; history is preserved.',
     'memory.archive': 'Archived the record.',
     'memory.restore': 'Restored the record.',

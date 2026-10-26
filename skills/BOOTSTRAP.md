@@ -46,3 +46,7 @@ Independent one-time notifications belong to reminder-management, not calendar e
 ## Failure
 
 If authentication is missing, ask to reconnect through settings. If quota is exhausted, state that the assistant is temporarily unavailable; never request an API key as an automatic fallback. For an unknown write result, instruct verification in Google Calendar before another write.
+
+## Schedule intent
+
+A personal timetable or ordinary weekday class belongs to program-management, not Google Calendar or execution routines. Prefer the owner’s intended resource over an earlier assistant interpretation. A not-calendar-but-my-program correction reuses original owner details and changes only Programs. Explicit one-off calendar requests remain calendar operations. Program data counts as availability evidence but does not create calendar events.

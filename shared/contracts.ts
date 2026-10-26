@@ -254,6 +254,7 @@ export const groupSchema = z.enum([
   'daily-summary',
   'preferences',
   'personal-memory',
+  'program-management',
   'conversation',
   'reminder-management',
   'web-research',
