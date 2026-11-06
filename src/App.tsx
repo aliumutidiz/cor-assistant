@@ -75,6 +75,8 @@ import { exportCalendar } from '../shared/calendar-export';
 import { operationMessage } from '../shared/operation-message';
 import { AgyPanel, type AgyStatus } from './AgyPanel';
 import { CalendarCache } from './calendar-cache';
+import { PlannerDetail, type PlannerItem } from './PlannerDetail';
+import { TodayPanel } from './TodayPanel';
 import { ThemeControl } from './ThemeControl';
 import { ProfileSettings, SettingsWorkspace } from './SettingsWorkspace';
 const MemoryPanel = lazy(() => import('./MemoryPanel').then((module) => ({ default: module.MemoryPanel })));
@@ -82,7 +84,15 @@ const ConnectionSettings = lazy(() =>
   import('./ConnectionSettings').then((module) => ({ default: module.ConnectionSettings })),
 );
 type Page =
-  'assistant' | 'calendar' | 'routines' | 'reminders' | 'memories' | 'programs' | 'history' | 'settings';
+  | 'today'
+  | 'assistant'
+  | 'calendar'
+  | 'routines'
+  | 'reminders'
+  | 'memories'
+  | 'programs'
+  | 'history'
+  | 'settings';
 type Message = {
   id?: string;
   exchangeId?: string;
@@ -165,7 +175,24 @@ export function App() {
   const [page, setPage] = useState<Page>('calendar');
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [calendarId, setCalendarId] = useState('primary');
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [googleEvents, setEvents] = useState<CalendarEvent[]>([]);
+  const [localItems, setLocalItems] = useState<PlannerItem[]>([]);
+  const [localError, setLocalError] = useState('');
+  const [localPartial, setLocalPartial] = useState(false);
+  const [plannerDetail, setPlannerDetail] = useState<PlannerItem>();
+  const [layers, setLayers] = useState({ calendar: true, program: true, reminder: true, routine: true });
+  const events: CalendarEvent[] = [
+    ...(layers.calendar ? googleEvents : []),
+    ...localItems.filter((item) => layers[item.source]),
+  ].sort((a, b) =>
+    (a.start.dateTime ?? a.start.date ?? '').localeCompare(b.start.dateTime ?? b.start.date ?? ''),
+  );
+  const openCalendarItem = (event: CalendarEvent) => {
+    const local =
+      'source' in event ? (event as PlannerItem) : localItems.find((item) => item.id === event.id);
+    if (local) setPlannerDetail(local);
+    else setEventEditor(event);
+  };
   const [eventSearch, setEventSearch] = useState('');
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState('');
@@ -435,6 +462,38 @@ export function App() {
   }, [refreshEvents]);
   useEffect(() => {
     if (!s) return;
+    const controller = new AbortController();
+    const load = () =>
+      api<{ items: PlannerItem[]; partial: boolean }>(
+        '/planner?' +
+          new URLSearchParams({
+            from: zonedISO(from + 'T00:00', zone),
+            to: zonedISO(until + 'T00:00', zone),
+          }),
+        undefined,
+        'GET',
+        undefined,
+        controller.signal,
+      )
+        .then((result) => {
+          if (!Array.isArray(result.items)) throw new Error('Invalid planning response.');
+          if (controller.signal.aborted) return;
+          setLocalItems(result.items);
+          setLocalPartial(result.partial);
+          setLocalError('');
+        })
+        .catch((e) => {
+          if (!controller.signal.aborted) setLocalError((e as Error).message);
+        });
+    void load();
+    const timer = setInterval(() => void load(), 60000);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [s, from, until, zone, operations.map((op) => op.id + ':' + op.status).join('|')]);
+  useEffect(() => {
+    if (!s) return;
     const source = new EventSource('/api/progress');
     source.addEventListener('jobs', (event) => setJobs(JSON.parse((event as MessageEvent).data) as Job[]));
     source.addEventListener('operations', (event) => {
@@ -679,6 +738,7 @@ export function App() {
           {(
             [
               { id: 'assistant', label: 'Assistant', icon: ChatCircle },
+              { id: 'today', label: 'Today', icon: CalendarBlank },
               { id: 'calendar', label: 'Calendar', icon: CalendarBlank },
               { id: 'reminders', label: 'Reminders', icon: Bell },
               { id: 'routines', label: 'Routines', icon: Lightning },
@@ -731,6 +791,7 @@ export function App() {
               {
                 {
                   assistant: 'Assistant',
+                  today: 'Today',
                   calendar: 'Calendar',
                   reminders: 'Reminders',
                   routines: 'Routines',
@@ -760,6 +821,7 @@ export function App() {
                   {
                     {
                       assistant: 'Assistant',
+                      today: 'Today',
                       calendar: 'Calendar',
                       reminders: 'Reminders',
                       routines: 'Routines',
@@ -842,6 +904,14 @@ export function App() {
                 </button>
               </div>
             ))}
+          {page === 'today' && (
+            <TodayPanel
+              zone={zone}
+              revision={operations.map((op) => op.id + op.status).join('|')}
+              open={openCalendarItem}
+              perform={perform}
+            />
+          )}
           {page === 'calendar' && (
             <>
               <div className="day-overview">
@@ -952,6 +1022,22 @@ export function App() {
                   </button>
                 </div>
                 <div className="calendar-context-bar">
+                  <div className="planner-layers" aria-label="Calendar layers">
+                    {(['calendar', 'program', 'reminder', 'routine'] as const).map((layer) => (
+                      <label key={layer}>
+                        <input
+                          type="checkbox"
+                          checked={layers[layer]}
+                          onChange={(e) =>
+                            setLayers((current) => ({ ...current, [layer]: e.target.checked }))
+                          }
+                        />
+                        {layer === 'calendar'
+                          ? 'Google Calendar'
+                          : layer[0].toUpperCase() + layer.slice(1) + 's'}
+                      </label>
+                    ))}
+                  </div>
                   <label className="calendar-search">
                     <MagnifyingGlass size={17} />
                     <input
@@ -968,6 +1054,13 @@ export function App() {
                     {eventsLoading ? 'Refreshing…' : `${events.length} events`} · {zone}
                   </span>
                 </div>
+                {(localError || localPartial) && (
+                  <p role="status" className="calendar-inline-error">
+                    {localError
+                      ? 'Personal planning could not be refreshed: ' + localError
+                      : 'Only part of this period is shown. Choose a shorter period for more detail.'}
+                  </p>
+                )}
                 {eventsError && (
                   <div role="alert" className="calendar-inline-error">
                     {eventsError}
@@ -980,11 +1073,20 @@ export function App() {
                   <div className="agenda">
                     {matchingEvents.length ? (
                       matchingEvents.map((e) => (
-                        <button className="agenda-event" key={e.id} onClick={() => setEventEditor(e)}>
+                        <button
+                          className="agenda-event"
+                          data-source={'source' in e ? String(e.source) : 'calendar'}
+                          key={e.id}
+                          onClick={() => openCalendarItem(e)}
+                        >
                           <span className="calendar-dot color-0" />
                           <time>{e.start.dateTime ? formatDate(e.start.dateTime, zone) : e.start.date}</time>
                           <strong>{e.summary}</strong>
-                          <span>{e.location}</span>
+                          <span>
+                            {'source' in e
+                              ? String(e.source) + (e.status === 'done' ? ' · Done' : '')
+                              : e.location}
+                          </span>
                           <ArrowRight size={16} />
                         </button>
                       ))
@@ -1029,7 +1131,12 @@ export function App() {
                             {d.getUTCDate()}
                           </button>
                           {list.map((e) => (
-                            <button className="month-event" key={e.id} onClick={() => setEventEditor(e)}>
+                            <button
+                              className="month-event"
+                              data-source={'source' in e ? String(e.source) : 'calendar'}
+                              key={e.id}
+                              onClick={() => openCalendarItem(e)}
+                            >
                               {e.summary}
                             </button>
                           ))}
@@ -1082,7 +1189,7 @@ export function App() {
                                 <button
                                   className="all-day-event"
                                   key={e.id}
-                                  onClick={() => setEventEditor(e)}
+                                  onClick={() => openCalendarItem(e)}
                                 >
                                   {e.summary}
                                 </button>
@@ -1174,6 +1281,7 @@ export function App() {
                                 <button
                                   key={e.id}
                                   className={'grid-event color-' + (i % 3)}
+                                  data-source={'source' in e ? String(e.source) : 'calendar'}
                                   style={{
                                     top,
                                     left: `calc(${(lane.lane * 100) / lane.columns}% + 4px)`,
@@ -1181,7 +1289,7 @@ export function App() {
                                     right: 'auto',
                                     height: Math.min(Math.max(24, (duration / 60) * 56), 1344 - top),
                                   }}
-                                  onClick={() => setEventEditor(e)}
+                                  onClick={() => openCalendarItem(e)}
                                 >
                                   <strong>{e.summary}</strong>
                                   <span>
@@ -1764,6 +1872,24 @@ export function App() {
           save={async (a) => {
             await perform(a);
             setEventEditor(undefined);
+          }}
+        />
+      )}
+      {plannerDetail && (
+        <PlannerDetail
+          item={plannerDetail}
+          close={() => setPlannerDetail(undefined)}
+          perform={perform}
+          changed={() => void refresh()}
+          manage={() => {
+            setPage(
+              plannerDetail.source === 'program'
+                ? 'programs'
+                : plannerDetail.source === 'reminder'
+                  ? 'reminders'
+                  : 'routines',
+            );
+            setPlannerDetail(undefined);
           }}
         />
       )}

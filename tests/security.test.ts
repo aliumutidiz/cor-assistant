@@ -28,6 +28,7 @@ describe('HTTP security boundaries', () => {
       '/api/settings/telegram',
       '/api/settings/research',
       '/api/reminders',
+      '/api/planner',
       '/api/voice/status',
       '/api/memories/00000000-0000-4000-8000-000000000001/export',
     ])

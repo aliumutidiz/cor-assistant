@@ -1,4 +1,68 @@
 @import 'tailwindcss';
+.planner-layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+}
+.planner-layers label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+.today-panel {
+  padding: 1.25rem;
+  max-width: 1000px;
+}
+.today-agenda-item {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 2fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  text-align: start;
+  padding: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.today-agenda-item time,
+.today-agenda-item span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+@media (max-width: 600px) {
+  .today-agenda-item {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+  .today-agenda-item span {
+    display: block !important;
+  }
+  .today-panel {
+    padding: 0;
+  }
+}
+.today-task {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--line);
+}
+[data-source='program'] {
+  border-inline-start: 3px solid #639c8a !important;
+}
+[data-source='reminder'] {
+  border-inline-start: 3px solid #c39b4c !important;
+}
+[data-source='routine'] {
+  border-inline-start: 3px dashed #8f83be !important;
+}
+.month-event[data-source]::before {
+  content: attr(data-source) ' · ';
+  font-size: 0.75em;
+  opacity: 0.8;
+}
 @theme {
   --font-sans: 'Geist Variable', 'Segoe UI', sans-serif;
 }

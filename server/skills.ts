@@ -14,7 +14,7 @@ export const skillMetadata: Record<SkillGroup, string> = {
   'daily-summary': 'Summarize upcoming appointments and conflicts.',
   preferences: 'Change the user timezone and interaction language.',
   'program-management':
-    'Manage weekly/monthly personal schedules and class timetables. A class on a weekday normally belongs here, unless the owner explicitly requests a one-off Google Calendar event. Handle not-calendar-but-my-timetable corrections using earlier owner details. Programs are independent of calendar events and routine execution.',
+    'Manage weekly/monthly personal schedules, active/rest day cycles, class timetables, occurrence completion/skipping/moving, pauses and optional deterministic Telegram notifications. A weekday class normally belongs here unless explicitly requested on Google Calendar. Programs are independent of Google events and AI report routines.',
   'personal-memory':
     'Manage durable owner profile (preferences, priorities, identity, personal boundaries), ideas, purchases, explicit tasks, weekly/monthly reusable programs and shopping lists. Search/read full records before revising. Programs do not create calendar events. Independent reminders belong to reminder-management.',
   conversation:

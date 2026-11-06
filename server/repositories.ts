@@ -822,7 +822,7 @@ export class PostgresStore implements Store {
     // Reminder preparation performs only reads; actual Telegram sends have a
     // separate outbox lease and retain the conservative unknown-send policy.
     await this.pool.query(
-      `UPDATE jobs SET status='queued',started_at=NULL,data=(data-'startedAt'-'finishedAt'-'error')||'{"status":"queued"}'::jsonb WHERE status='unknown' AND data->'payload'->'reminder' IS NOT NULL AND data->>'kind'='routine' AND data->>'error'='Worker lease expired; manual reconciliation required'`,
+      `UPDATE jobs SET status='queued',started_at=NULL,data=(data-'startedAt'-'finishedAt'-'error')||'{"status":"queued"}'::jsonb WHERE status='unknown' AND (data->'payload'->'reminder' IS NOT NULL OR data->'payload'->'programReminder' IS NOT NULL) AND data->>'kind'='routine' AND data->>'error'='Worker lease expired; manual reconciliation required'`,
     );
     await this.pool.query(
       `UPDATE operations SET status='unknown',data=data||'{"status":"unknown","error":"Execution interrupted; verify Google before retrying"}'::jsonb WHERE status='running' AND updated_at<now()-interval '10 minutes'`,

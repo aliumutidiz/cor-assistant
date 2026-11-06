@@ -52,7 +52,7 @@ export class PersonalMemory {
       occurrences: programOccurrences(record.program, first, last),
       blocksTime: record.program.blocksTime !== false,
       googleCalendarEvents: false,
-      notifications: false,
+      notifications: record.program.entries.some((entry) => entry.notifyMinutesBefore !== undefined),
     };
   }
   async context(request: string) {

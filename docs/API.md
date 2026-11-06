@@ -13,24 +13,25 @@ Production API routes require the configured owner identity (Google owner login 
 
 The source of truth is `shared/contracts.ts`. Responses never include Google credentials or application secrets. Validation errors use HTTP 400, stale versions/onay conflicts 409, quota 429, disabled integrations 503, and provider timeout 504. Error bodies have `error`, optional `details`, optional `uncertain`.
 
-| Method | Path                                                 | Purpose                                                                           |
-| ------ | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| GET    | `/api/session`                                       | Owner, demo/integration flags, preferences, CSRF                                  |
-| GET    | `/api/calendars`                                     | Visible calendars                                                                 |
-| GET    | `/api/events?calendarId=...&from=...&to=...`         | Expanded events, at most 93 days                                                  |
-| GET    | `/api/sharing?calendarId=...`                        | Current ACL entries                                                               |
-| GET    | `/api/resources?kind=...&calendarId=...&eventId=...` | Event/master, calendar metadata, bounded instances, settings or colors            |
-| GET    | `/api/routines`                                      | Routines and versions                                                             |
-| POST   | `/api/routines/preview`                              | Validate routine input and calculate next run without saving                      |
-| POST   | `/api/operations`                                    | Validate and persist an action; returns queued or awaiting_approval               |
-| POST   | `/api/operations/:id/approve`                        | Body `{hash}` approves only unchanged content                                     |
-| POST   | `/api/operations/:id/cancel`                         | Cancel a queued or pending action                                                 |
-| GET    | `/api/history`                                       | Latest operations and jobs                                                        |
-| GET    | `/api/progress`                                      | SSE `operations` snapshots; reconnect/query history after disconnect              |
-| POST   | `/api/chat`                                          | Body `{message}`; selected skill, proposed operation, measured usage if available |
-| POST   | `/api/oauth/connect`                                 | Return the Google consent URL                                                     |
-| GET    | `/api/oauth/callback`                                | Session-bound Google authorization callback                                       |
-| POST   | `/api/sync`                                          | Body `{calendarId}` runs incremental sync                                         |
+| Method | Path                                                 | Purpose                                                                               |
+| ------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| GET    | `/api/session`                                       | Owner, demo/integration flags, preferences, CSRF                                      |
+| GET    | `/api/calendars`                                     | Visible calendars                                                                     |
+| GET    | `/api/events?calendarId=...&from=...&to=...`         | Expanded events, at most 93 days                                                      |
+| GET    | `/api/sharing?calendarId=...`                        | Current ACL entries                                                                   |
+| GET    | `/api/resources?kind=...&calendarId=...&eventId=...` | Event/master, calendar metadata, bounded instances, settings or colors                |
+| GET    | `/api/routines`                                      | Routines and versions                                                                 |
+| GET    | `/api/planner?from=...&to=...`                       | Bounded local program occurrences, reminders and routine runs; explicit partial state |
+| POST   | `/api/routines/preview`                              | Validate routine input and calculate next run without saving                          |
+| POST   | `/api/operations`                                    | Validate and persist an action; returns queued or awaiting_approval                   |
+| POST   | `/api/operations/:id/approve`                        | Body `{hash}` approves only unchanged content                                         |
+| POST   | `/api/operations/:id/cancel`                         | Cancel a queued or pending action                                                     |
+| GET    | `/api/history`                                       | Latest operations and jobs                                                            |
+| GET    | `/api/progress`                                      | SSE `operations` snapshots; reconnect/query history after disconnect                  |
+| POST   | `/api/chat`                                          | Body `{message}`; selected skill, proposed operation, measured usage if available     |
+| POST   | `/api/oauth/connect`                                 | Return the Google consent URL                                                         |
+| GET    | `/api/oauth/callback`                                | Session-bound Google authorization callback                                           |
+| POST   | `/api/sync`                                          | Body `{calendarId}` runs incremental sync                                             |
 
 ## Examples
 

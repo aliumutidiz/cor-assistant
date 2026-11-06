@@ -10,6 +10,7 @@ import type { OperationService } from './services.js';
 import type { SpeechTranscriber } from './speech.js';
 import { AppError } from './errors.js';
 import { telegramMarkdown } from './telegram-markdown.js';
+import { ProgramNotifications } from './program-notifications.js';
 import { operationMessage } from '../shared/operation-message.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
@@ -257,6 +258,7 @@ export class TelegramService {
     keyboard?: Keyboard,
     taskReminder?: Job['payload']['taskReminder'],
     reminder?: Job['payload']['reminder'],
+    programReminder?: Job['payload']['programReminder'],
   ) {
     const chunks = telegramMarkdown(text);
     for (let i = 0; i < chunks.length; i++)
@@ -264,6 +266,7 @@ export class TelegramService {
         newJob('telegram_outgoing', i === 0 ? key : key + ':part:' + i, {
           ...(taskReminder ? { taskReminder } : {}),
           ...(reminder ? { reminder } : {}),
+          ...(programReminder ? { programReminder } : {}),
           telegram: {
             ...(this.replyChat.getStore() ? { chatId: this.replyChat.getStore() } : {}),
             ...chunks[i],
@@ -506,7 +509,7 @@ export class TelegramService {
     if (!since) return;
     const pending = await this.store.pendingNotifications(since);
     for (const j of pending.jobs) {
-      if (j.payload.reminder && j.status !== 'succeeded') continue;
+      if ((j.payload.reminder || j.payload.programReminder) && j.status !== 'succeeded') continue;
       if ((j.result as { skipped?: boolean })?.skipped) {
         await this.store.enqueue(newJob('telegram_outgoing', 'tg:job:' + j.id, { telegram: { text: '' } }));
         continue;
@@ -522,7 +525,9 @@ export class TelegramService {
       const text =
         j.status !== 'succeeded'
           ? `Rutin tamamlanamadı: ${r?.name ?? 'Rutin'}\n${j.error ?? 'Sonuç belirsiz; işlem geçmişini kontrol edin.'}`
-          : data.type === 'task_reminder' || (data.type === 'reminder' && j.payload.reminder)
+          : data.type === 'task_reminder' ||
+              data.type === 'program_reminder' ||
+              (data.type === 'reminder' && j.payload.reminder)
             ? `Hatırlatma: ${data.title}\n${data.message}`
             : r?.kind === 'reminder'
               ? `${r.name}\n${data.message}`
@@ -554,6 +559,7 @@ export class TelegramService {
         undefined,
         j.payload.taskReminder,
         j.payload.reminder,
+        j.payload.programReminder,
       );
     }
     const preferences = await this.store.get<{ timeZone: string; language?: string }>('preferences');
@@ -585,7 +591,15 @@ export class TelegramService {
         (!task || task.archived || task.taskState === 'done' || task.remindAt !== reminder.remindAt);
       const standalone = job.payload.reminder;
       const current = standalone ? await this.operations.reminders.current(standalone) : undefined;
-      if (job.payload.telegram?.text && !canceled && (!standalone || current)) {
+      const programCurrent = job.payload.programReminder
+        ? await new ProgramNotifications(this.store).current(job.payload.programReminder)
+        : undefined;
+      if (
+        job.payload.telegram?.text &&
+        !canceled &&
+        (!standalone || current) &&
+        (!job.payload.programReminder || programCurrent)
+      ) {
         const destination =
           job.payload.telegram.chatId ?? this.config.TELEGRAM_CHAT_ID ?? this.config.TELEGRAM_OWNER_ID;
         if (
@@ -610,7 +624,7 @@ export class TelegramService {
       job.status = 'succeeded';
     } catch (e) {
       const attempts = job.payload.telegram?.attempts ?? 0;
-      if (job.payload.reminder && !sendStarted) {
+      if ((job.payload.reminder || job.payload.programReminder) && !sendStarted) {
         job.status = 'queued';
         job.scheduledAt = new Date(Date.now() + 60000).toISOString();
       } else if (e instanceof TelegramApiError && e.retryAfter && attempts < 3) {

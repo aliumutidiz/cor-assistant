@@ -14,6 +14,12 @@ export function prefersProgramCapability(message: string) {
       text,
     );
   if (explicitCalendar) return false;
+  if (
+    /gun\s*asiri|(?:bir|1) gun.{0,60}(?:bir|1) gun|\d+ gun.{0,60}\d+ gun|every other day|\d+ days? on.{0,30}\d+ days? off|active.{0,20}rest.{0,20}cycle/u.test(
+      text,
+    )
+  )
+    return true;
   if (/rutin|hatirlat|notification|remind|scheduled report/u.test(text)) return false;
   if (namedProgram) return true;
   const weeklyClass =

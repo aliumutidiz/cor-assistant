@@ -219,6 +219,14 @@ export type Job = {
     operationId?: string;
     routine?: Routine;
     taskReminder?: { memoryId: string; remindAt: string };
+    programReminder?: {
+      memoryId: string;
+      version: number;
+      entryId: string;
+      originalDay: string;
+      start: string;
+      notifyAt: string;
+    };
     reminder?: { id: string; version: number; remindAt: string };
     telegram?: {
       chatId?: number;

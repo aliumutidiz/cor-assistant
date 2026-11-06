@@ -2,7 +2,7 @@
 
 Use **Programs → Add program** for classes, recurring appointments or a reusable personal timetable. This is separate from routines: a program describes occupied time, while a routine schedules execution or a notification.
 
-Each program contains named activities with weekly ISO weekdays or monthly dates, start/end times and an explicit IANA timezone. It supports effective start/end dates, skipped dates, pause/resume and an **Include in availability** switch. A monthly date absent from a month is skipped. Overnight activities must be split into two entries. Saved programs remain revisioned personal-memory records; no duplicate Google events or automatic notifications are created.
+Each program contains named activities with weekly ISO weekdays, monthly dates or anchored active/rest cycles, start/end times and an explicit IANA timezone. It supports effective start/end dates, skipped dates, per-occurrence changes, vacation pauses and an **Include in availability** switch. A monthly date absent from a month is skipped. Overnight activities must be split into two entries. Saved programs remain revisioned personal-memory records; no duplicate Google events are created. Telegram notifications are optional per entry. See [Local planning](LOCAL-PLANNING.md) for cycles, combined calendar layers, Today and notification behavior.
 
 The form accepts optional notes; the schedule itself is sufficient. Programs are also accessible through Memory. Memory offers list/card layouts, type and search filters, separate active/completed/archive views, source text and version history.
 

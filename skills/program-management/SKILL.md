@@ -5,7 +5,7 @@ description: Manage personal weekly/monthly timetables, classes and reusable sch
 
 # Programs and class timetables
 
-Version: 1.0.0
+Version: 1.1.0
 Response language: follow the owner communication profile.
 
 ## Purpose and activation
@@ -16,7 +16,15 @@ A correction such as "not in my calendar; add it to my class timetable" changes 
 
 ## Preconditions and defaults
 
-Use the saved timezone and a weekly pattern for an ordinary weekday class. Do not turn Monday into a single next-Monday event. Leave from/until null unless the owner supplied term dates. enabled=true and blocksTime=true are appropriate for a requested active timetable. Missing essential weekday/start/end information requires clarification. Do not invent room, location or semester boundaries. Program creation creates neither Google events nor notifications.
+Use the saved timezone and a weekly pattern for an ordinary weekday class. Do not turn Monday into a single next-Monday event. Leave from/until null unless the owner supplied term dates. enabled=true and blocksTime=true are appropriate for a requested active timetable. Missing essential weekday/start/end information requires clarification. Do not invent room, location or semester boundaries. Program creation never creates Google events. Notifications are opt-in through notifyMinutesBefore.
+
+## Active/rest cycles and daily use
+
+For every-other-day exercise use frequency=cycle, days=[1], cycle={anchor:OWNER_FIRST_ACTIVE_DATE,activeDays:1,restDays:1}. Three days on / one off uses activeDays=3,restDays=1. The anchor is a local calendar date, not a 48-hour timer: DST does not shift dates. Ask for the first active date and activity time/duration if missing; do not invent them. Cycles continue across weeks/months. Rest days are not busy and send no notifications. A request to shift the whole cycle updates its anchor after reading the record; a skipped day never shifts it automatically.
+
+For one occurrence, upsert one exceptions item keyed by entryId + original day: status=done, skipped, or moved. A moved occurrence requires movedTo and optionally paired movedStart/movedEnd (same-day end after start). Preserve the original day when moving an already moved occurrence. Do not rewrite the base pattern. Restore removes the exception. Completion is optional; never demand that classes or every routine be tracked. Keep unrelated exceptions and entries. Preview the next few occurrences with program-occurrences when the owner asks; never claim those dates were executed.
+
+For a holiday pause set paused={from,until} (inclusive) or enabled=false for indefinite pause. Resume clears paused or sets enabled=true as appropriate. Use blocksTime=false for informational items. For an explicitly requested Telegram reminder set entry.notifyMinutesBefore from 0 to 1440; omit it when not requested. quietHours={start:22,end:7} suppresses notifications in those local hours, without shifting the schedule or sending a later catch-up. Explain this when enabling quiet hours. Fixed notifications and expansion use no LLM. AI-written reports remain routine-management.
 
 ## Authoritative program index
 

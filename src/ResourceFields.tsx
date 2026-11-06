@@ -89,8 +89,8 @@ export function ResourceFields({
         <fieldset className="resource-fields">
           <legend>Recurring program</legend>
           <p className="muted small">
-            Programs do not create Google events or notifications. Weeks start on Monday; missing dates are
-            skipped.
+            Programs stay in C.O.R. without creating Google events. Telegram reminders are optional per
+            activity.
           </p>
           <label>
             <input
@@ -109,8 +109,8 @@ export function ResourceFields({
             Include in availability
           </label>
           <small>
-            When enabled, these activities count as busy time alongside your calendar. No Google events or
-            notifications are created.
+            When enabled, these activities count as busy time alongside your calendar. Notification-only items
+            should not block time.
           </small>
           <label>
             Time zone
@@ -139,6 +139,119 @@ export function ResourceFields({
             </label>
           </div>
           <SkippedDates program={program} onChange={(next) => onChange({ program: next })} />
+          {!!program.exceptions?.length && (
+            <details>
+              <summary>Occurrence changes ({program.exceptions.length})</summary>
+              {program.exceptions.map((item) => (
+                <div className="today-task" key={item.entryId + item.day}>
+                  <span>
+                    {program.entries.find((entry) => entry.id === item.entryId)?.title} · {item.day} ·{' '}
+                    {item.status}
+                    {item.movedTo ? ` → ${item.movedTo}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() =>
+                      onChange({
+                        program: {
+                          ...program,
+                          exceptions: program.exceptions?.filter((value) => value !== item),
+                        },
+                      })
+                    }
+                  >
+                    Restore
+                  </button>
+                </div>
+              ))}
+            </details>
+          )}
+          <details>
+            <summary>Pause and quiet hours</summary>
+            <label>
+              Pause from
+              <input
+                type="date"
+                value={program.paused?.from ?? ''}
+                onChange={(e) =>
+                  onChange({
+                    program: {
+                      ...program,
+                      paused: e.target.value
+                        ? { from: e.target.value, until: program.paused?.until ?? e.target.value }
+                        : undefined,
+                    },
+                  })
+                }
+              />
+            </label>
+            {program.paused && (
+              <label>
+                Resume after
+                <input
+                  type="date"
+                  min={program.paused.from}
+                  value={program.paused.until}
+                  onChange={(e) =>
+                    onChange({
+                      program: { ...program, paused: { ...program.paused!, until: e.target.value } },
+                    })
+                  }
+                />
+              </label>
+            )}
+            <label>
+              <input
+                type="checkbox"
+                checked={!!program.quietHours}
+                onChange={(e) =>
+                  onChange({
+                    program: { ...program, quietHours: e.target.checked ? { start: 22, end: 7 } : undefined },
+                  })
+                }
+              />{' '}
+              Quiet hours (suppress notifications)
+            </label>
+            {program.quietHours && (
+              <div className="form-grid">
+                <label>
+                  From hour
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={program.quietHours.start}
+                    onChange={(e) =>
+                      onChange({
+                        program: {
+                          ...program,
+                          quietHours: { ...program.quietHours!, start: Number(e.target.value) },
+                        },
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Until hour
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={program.quietHours.end}
+                    onChange={(e) =>
+                      onChange({
+                        program: {
+                          ...program,
+                          quietHours: { ...program.quietHours!, end: Number(e.target.value) },
+                        },
+                      })
+                    }
+                  />
+                </label>
+              </div>
+            )}
+          </details>
           {program.entries.map((entry) => {
             const update = (patch: Partial<typeof entry>) =>
               onChange({
@@ -163,6 +276,7 @@ export function ResourceFields({
                 <label>
                   Repeat
                   <select
+                    aria-label="Repeat"
                     value={entry.frequency}
                     onChange={(e) =>
                       update({ frequency: e.target.value as typeof entry.frequency, days: [1] })
@@ -170,30 +284,94 @@ export function ResourceFields({
                   >
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
+                    <option value="cycle">Active / rest day cycle</option>
                   </select>
                 </label>
-                <div className="resource-days" aria-label="Repeat days">
-                  {Array.from({ length: entry.frequency === 'weekly' ? 7 : 31 }, (_, i) => i + 1).map(
-                    (day) => (
-                      <label key={day}>
-                        <input
-                          type="checkbox"
-                          checked={entry.days.includes(day)}
-                          onChange={(e) =>
-                            update({
-                              days: e.target.checked
-                                ? [...entry.days, day].sort((a, b) => a - b)
-                                : entry.days.filter((d) => d !== day),
-                            })
-                          }
-                        />
-                        {entry.frequency === 'weekly'
-                          ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day - 1]
-                          : day}
-                      </label>
-                    ),
-                  )}
-                </div>
+                {entry.frequency === 'cycle' && (
+                  <p className="muted small">
+                    The cycle follows local dates across weeks and months. Skipping a day does not shift later
+                    dates.
+                  </p>
+                )}
+                {entry.frequency === 'cycle' && (
+                  <div className="form-grid">
+                    <label>
+                      First active day
+                      <input
+                        required
+                        type="date"
+                        value={entry.cycle?.anchor ?? ''}
+                        onChange={(e) =>
+                          update({
+                            cycle: { activeDays: 1, restDays: 1, ...entry.cycle, anchor: e.target.value },
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Active days
+                      <input
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={entry.cycle?.activeDays ?? 1}
+                        onChange={(e) =>
+                          update({
+                            cycle: {
+                              anchor: dateKey(new Date(), program.timeZone),
+                              restDays: 1,
+                              ...entry.cycle,
+                              activeDays: Number(e.target.value),
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Rest days
+                      <input
+                        type="number"
+                        min="0"
+                        max="365"
+                        value={entry.cycle?.restDays ?? 1}
+                        onChange={(e) =>
+                          update({
+                            cycle: {
+                              anchor: dateKey(new Date(), program.timeZone),
+                              activeDays: 1,
+                              ...entry.cycle,
+                              restDays: Number(e.target.value),
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
+                )}
+                {entry.frequency !== 'cycle' && (
+                  <div className="resource-days" aria-label="Repeat days">
+                    {Array.from({ length: entry.frequency === 'weekly' ? 7 : 31 }, (_, i) => i + 1).map(
+                      (day) => (
+                        <label key={day}>
+                          <input
+                            type="checkbox"
+                            checked={entry.days.includes(day)}
+                            onChange={(e) =>
+                              update({
+                                days: e.target.checked
+                                  ? [...entry.days, day].sort((a, b) => a - b)
+                                  : entry.days.filter((d) => d !== day),
+                              })
+                            }
+                          />
+                          {entry.frequency === 'weekly'
+                            ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day - 1]
+                            : day}
+                        </label>
+                      ),
+                    )}
+                  </div>
+                )}
                 <div className="form-grid">
                   <label>
                     Start time
@@ -222,6 +400,24 @@ export function ResourceFields({
                     onChange={(e) => update({ location: e.target.value })}
                   />
                 </label>
+                <label>
+                  Telegram reminder
+                  <select
+                    value={entry.notifyMinutesBefore ?? ''}
+                    onChange={(e) =>
+                      update({
+                        notifyMinutesBefore: e.target.value === '' ? undefined : Number(e.target.value),
+                      })
+                    }
+                  >
+                    <option value="">No notification</option>
+                    {[0, 5, 15, 30, 60, 120, 1440].map((minutes) => (
+                      <option key={minutes} value={minutes}>
+                        {minutes === 0 ? 'At start' : `${minutes} minutes before`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <button
                   type="button"
                   className="text-button"
@@ -230,6 +426,7 @@ export function ResourceFields({
                       program: {
                         ...program,
                         entries: program.entries.filter((item) => item.id !== entry.id),
+                        exceptions: program.exceptions?.filter((item) => item.entryId !== entry.id),
                       },
                     })
                   }
@@ -433,7 +630,7 @@ export function ResourcePreview({
           {programOccurrences(program, today, until)
             .slice(0, 14)
             .map((item) => (
-              <div key={item.entryId + item.day}>
+              <div key={item.entryId + item.originalDay}>
                 <time>
                   {item.day} · {item.start}–{item.end}
                 </time>

@@ -24,6 +24,7 @@ import { voiceRoutes } from './voice-routes.js';
 import { ChatRequests, chatRequestRoutes } from './chat-requests.js';
 import { ResearchService, researchRoutes } from './research.js';
 import { Connections, connectionRoutes } from './connections.js';
+import { plannerRoutes } from './planner.js';
 export async function createApp(
   config: Config,
   store: Store,
@@ -66,6 +67,7 @@ export async function createApp(
   const agyManagement = overrides.agyManagement ?? new AgyManagement(config);
   agyManagementRoutes(app, agyManagement);
   memoryRoutes(app, store);
+  plannerRoutes(app, store);
   voiceRoutes(app, store, config);
   const connections = new Connections(config, store);
   await connections.apply();

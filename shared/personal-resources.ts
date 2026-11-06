@@ -5,14 +5,25 @@ export const scheduleEntry = z
   .object({
     id: z.uuid(),
     title: z.string().trim().min(1).max(200),
-    frequency: z.enum(['weekly', 'monthly']),
+    frequency: z.enum(['weekly', 'monthly', 'cycle']),
+    cycle: z
+      .object({
+        anchor: z.iso.date(),
+        activeDays: z.number().int().min(1).max(365),
+        restDays: z.number().int().min(0).max(365),
+      })
+      .strict()
+      .optional(),
     days: z.array(z.number().int().min(1).max(31)).min(1).max(31),
     start: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
     end: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
     location: z.string().trim().max(300).default(''),
+    notifyMinutesBefore: z.number().int().min(0).max(1440).optional(),
   })
   .strict()
   .superRefine((entry, ctx) => {
+    if (entry.frequency === 'cycle' && !entry.cycle)
+      ctx.addIssue({ code: 'custom', message: 'A cycle needs an anchor date and active/rest day counts.' });
     if (entry.end <= entry.start)
       ctx.addIssue({ code: 'custom', message: 'End must follow start on the same local day.' });
     if (
@@ -35,10 +46,40 @@ export const personalProgram = z
         }
       }),
     enabled: z.boolean().default(true),
+    paused: z
+      .object({ from: z.iso.date(), until: z.iso.date() })
+      .strict()
+      .refine((value) => value.until >= value.from, 'Pause end precedes start.')
+      .optional(),
+    quietHours: z
+      .object({ start: z.number().int().min(0).max(23), end: z.number().int().min(0).max(23) })
+      .strict()
+      .optional(),
     blocksTime: z.boolean().optional(),
     from: z.iso.date().nullable().default(null),
     until: z.iso.date().nullable().default(null),
     excludedDates: z.array(z.iso.date()).max(366).default([]),
+    exceptions: z
+      .array(
+        z
+          .object({
+            entryId: z.uuid(),
+            day: z.iso.date(),
+            status: z.enum(['skipped', 'done', 'moved']),
+            movedTo: z.iso.date().optional(),
+            movedStart: z
+              .string()
+              .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
+              .optional(),
+            movedEnd: z
+              .string()
+              .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
+              .optional(),
+          })
+          .strict(),
+      )
+      .max(1000)
+      .optional(),
     entries: z.array(scheduleEntry).min(1).max(100),
   })
   .strict()
@@ -47,6 +88,19 @@ export const personalProgram = z
       ctx.addIssue({ code: 'custom', message: 'Program end precedes start.' });
     if (new Set(program.entries.map((entry) => entry.id)).size !== program.entries.length)
       ctx.addIssue({ code: 'custom', message: 'Duplicate entry IDs.' });
+    const keys = new Set<string>();
+    for (const item of program.exceptions ?? []) {
+      const key = item.entryId + ':' + item.day;
+      if (
+        keys.has(key) ||
+        !program.entries.some((entry) => entry.id === item.entryId) ||
+        (item.status === 'moved' && (!item.movedTo || (item.movedTo === item.day && !item.movedStart))) ||
+        Boolean(item.movedStart) !== Boolean(item.movedEnd) ||
+        (item.movedStart && item.movedEnd && item.movedEnd <= item.movedStart)
+      )
+        ctx.addIssue({ code: 'custom', message: 'Invalid or duplicate occurrence exception.' });
+      keys.add(key);
+    }
   });
 export const shoppingItem = z
   .object({
@@ -92,25 +146,58 @@ export function programOccurrences(program: PersonalProgram, from: string, until
     end: string;
     location: string;
     timeZone: string;
+    originalDay: string;
+    status?: 'done';
   }[] = [];
   if (!program.enabled) return result;
+  const exceptions = new Map((program.exceptions ?? []).map((item) => [item.entryId + ':' + item.day, item]));
+  const moves = new Map<string, NonNullable<PersonalProgram['exceptions']>>();
+  for (const item of program.exceptions ?? []) {
+    if (item.status !== 'moved' || !item.movedTo) continue;
+    const key = item.entryId + ':' + item.movedTo;
+    moves.set(key, [...(moves.get(key) ?? []), item]);
+  }
   for (let time = start; time < end; time += 86400000) {
     const date = new Date(time),
       day = date.toISOString().slice(0, 10);
     if (
       (program.from && day < program.from) ||
       (program.until && day > program.until) ||
-      program.excludedDates.includes(day)
+      program.excludedDates.includes(day) ||
+      (program.paused && day >= program.paused.from && day <= program.paused.until)
     )
       continue;
     for (const entry of program.entries) {
-      if (entry.days.includes(entry.frequency === 'weekly' ? date.getUTCDay() || 7 : date.getUTCDate()))
+      const offset = entry.cycle
+        ? Math.round((time - Date.parse(entry.cycle.anchor + 'T12:00:00Z')) / 86400000)
+        : -1;
+      const scheduled =
+        entry.frequency === 'cycle'
+          ? !!entry.cycle &&
+            offset >= 0 &&
+            offset % (entry.cycle.activeDays + entry.cycle.restDays) < entry.cycle.activeDays
+          : entry.days.includes(entry.frequency === 'weekly' ? date.getUTCDay() || 7 : date.getUTCDate());
+      const exception = exceptions.get(entry.id + ':' + day);
+      if (scheduled && exception?.status !== 'skipped' && exception?.status !== 'moved')
         result.push({
           entryId: entry.id,
           title: entry.title,
           day,
           start: entry.start,
           end: entry.end,
+          location: entry.location,
+          timeZone: program.timeZone,
+          originalDay: day,
+          ...(exception?.status === 'done' ? { status: 'done' as const } : {}),
+        });
+      for (const moved of moves.get(entry.id + ':' + day) ?? [])
+        result.push({
+          entryId: entry.id,
+          title: entry.title,
+          day,
+          originalDay: moved.day,
+          start: moved.movedStart ?? entry.start,
+          end: moved.movedEnd ?? entry.end,
           location: entry.location,
           timeZone: program.timeZone,
         });

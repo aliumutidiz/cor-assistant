@@ -20,6 +20,7 @@ import { PersonalMemory } from './memory-service.js';
 import { memoryInput } from '../shared/memory.js';
 import { containsCredential } from './sensitive.js';
 import { ReminderService } from './reminder-service.js';
+import { ProgramNotifications } from './program-notifications.js';
 export function nextRun(cron: string, timeZone: string, from = new Date()) {
   try {
     if (cron.trim().split(/\s+/).length !== 5) throw Error();
@@ -463,6 +464,7 @@ export function conflicts(events: CalendarEvent[]) {
   return pairs;
 }
 export class WorkerService {
+  private programNotifications?: ProgramNotifications;
   private reportStop = new AbortController();
   private reportRunning?: Promise<boolean>;
   private reminderSync?: Promise<void>;
@@ -482,6 +484,8 @@ export class WorkerService {
     await this.operations.repairQueue();
     await this.routines.schedule();
     await new PersonalMemory(this.store).schedule();
+    this.programNotifications ??= new ProgramNotifications(this.store);
+    await this.programNotifications.schedule();
     await this.operations.reminders.schedule(false);
     const job = await this.store.claim();
     if (!job) return false;
@@ -529,6 +533,19 @@ export class WorkerService {
               llmUsed: false,
             }
           : { skipped: true, reason: 'Reminder changed or canceled' };
+      } else if (job.payload.programReminder) {
+        const item = await (this.programNotifications ??= new ProgramNotifications(this.store)).current(
+          job.payload.programReminder,
+        );
+        job.result = item
+          ? {
+              type: 'program_reminder',
+              title: item.title,
+              message: `${item.start} · ${item.timeZone}`,
+              execution: 'deterministic',
+              llmUsed: false,
+            }
+          : { skipped: true, reason: 'Program occurrence changed, paused or completed' };
       } else if (job.payload.taskReminder) {
         const { memoryId, remindAt } = job.payload.taskReminder;
         const task = await this.store.memory(memoryId);
@@ -611,7 +628,7 @@ export class WorkerService {
       }
       job.status = 'succeeded';
     } catch (e) {
-      if (job.payload.reminder) {
+      if (job.payload.reminder || job.payload.programReminder) {
         job.status = 'queued';
         job.scheduledAt = new Date(Date.now() + 60000).toISOString();
         await this.store.finish(job);

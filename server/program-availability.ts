@@ -43,6 +43,9 @@ export async function programAvailability(store: Store, from: string, to: string
     timeZone: string;
     blocksTime: boolean;
     ambiguous: boolean;
+    originalDay: string;
+    status?: 'done';
+    notifyMinutesBefore?: number;
   }[] = [];
   let before: string | undefined,
     partial = false,
@@ -92,6 +95,10 @@ export async function programAvailability(store: Store, from: string, to: string
             timeZone: item.timeZone,
             blocksTime: program.blocksTime !== false,
             ambiguous: starts.length > 1 || ends.length > 1,
+            originalDay: item.originalDay,
+            ...(item.status ? { status: item.status } : {}),
+            notifyMinutesBefore: program.entries.find((entry) => entry.id === item.entryId)
+              ?.notifyMinutesBefore,
           });
         }
         cursor = chunk;

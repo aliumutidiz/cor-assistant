@@ -131,7 +131,7 @@ Browser tests start isolated demo services and do not need personal credentials.
 | `deploy/`, `scripts/` | Optional infrastructure, setup, diagnostics and backups       |
 | `tests/`, `e2e/`      | Security, domain, persistence and browser verification        |
 
-Recurring classes and commitments have a dedicated **Programs** workspace and are included in assistant availability checks. See [programs and timetables](docs/PROGRAMS.md).
+Recurring classes and commitments have a dedicated **Programs** workspace and are included in assistant availability checks. Anchored active/rest cycles support alternate-day exercise and similar patterns. Calendar layers combine Google events, programs, reminders and routine runs; **Today** collects the day's plans and open tasks. Occurrences can be completed, skipped or moved without shifting the base schedule. Optional Telegram reminders run without an LLM. See [programs and timetables](docs/PROGRAMS.md) and [local planning](docs/LOCAL-PLANNING.md).
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md), [API contracts](docs/API.md), [conversation controls](docs/CONVERSATIONS.md) and [assistant languages](docs/LANGUAGES.md). The [execution review](docs/AGENT-REVIEW-2026-10-25.md) records the latest logic fixes and verification boundaries.
 
