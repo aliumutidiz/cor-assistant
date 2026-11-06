@@ -14,7 +14,7 @@
   padding: 1.25rem;
   max-width: 1000px;
 }
-.today-agenda-item {
+.today-panel .today-agenda-item {
   display: grid;
   grid-template-columns: minmax(100px, 1fr) 2fr auto;
   align-items: center;
@@ -24,17 +24,17 @@
   padding: 1rem;
   border-bottom: 1px solid var(--line);
 }
-.today-agenda-item time,
-.today-agenda-item span {
+.today-panel .today-agenda-item time,
+.today-panel .today-agenda-item span {
   color: var(--muted);
   font-size: 0.9rem;
 }
 @media (max-width: 600px) {
-  .today-agenda-item {
+  .today-panel .today-agenda-item {
     grid-template-columns: 1fr;
     gap: 0.35rem;
   }
-  .today-agenda-item span {
+  .today-panel .today-agenda-item span {
     display: block !important;
   }
   .today-panel {
