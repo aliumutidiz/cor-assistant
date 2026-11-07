@@ -2,7 +2,7 @@ import { beforeEach, afterEach, it, expect, vi, describe } from 'vitest';
 import { GoogleCalendar } from '../server/google.js';
 import { loadConfig } from '../server/config.js';
 import { MemoryStore } from '../server/repositories.js';
-import { seal } from '../server/crypto.js';
+import { seal, unseal } from '../server/crypto.js';
 let store: MemoryStore, google: GoogleCalendar;
 const config = loadConfig({
   NODE_ENV: 'test',
@@ -25,6 +25,82 @@ afterEach(() => vi.unstubAllGlobals());
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 describe('Google protocol behavior', () => {
+  it('recovers a rejected read token once without replaying a write', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(json({}, 401))
+      .mockResolvedValueOnce(json({ access_token: 'renewed', expires_in: 3600 }))
+      .mockResolvedValueOnce(json({ items: [] }));
+    vi.stubGlobal('fetch', fetch);
+    expect(await google.request('users/me/calendarList')).toEqual({ items: [] });
+    expect(fetch).toHaveBeenCalledTimes(3);
+    const write = vi.fn().mockResolvedValue(json({}, 401));
+    vi.stubGlobal('fetch', write);
+    await expect(google.request('calendars/primary/events', 'POST', {})).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+  it('preserves rotated refresh tokens and Google authorization expiry metadata', async () => {
+    await store.set(
+      'google.tokens',
+      seal(
+        {
+          access_token: 'expired',
+          refresh_token: 'original',
+          expires_at: 0,
+          connectedAt: '2026-01-01T00:00:00Z',
+        },
+        config.ENCRYPTION_KEY,
+      ),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          json({
+            access_token: 'new-access',
+            refresh_token: 'rotated',
+            expires_in: 3600,
+            refresh_token_expires_in: 604800,
+          }),
+        )
+        .mockResolvedValueOnce(json({ items: [] })),
+    );
+    await google.request('users/me/calendarList');
+    const value = unseal<{ refresh_token: string; connectedAt: string; refreshExpiresAt: string }>(
+      (await store.get<string>('google.tokens'))!,
+      config.ENCRYPTION_KEY,
+    );
+    expect(value.refresh_token).toBe('rotated');
+    expect(value.connectedAt).toBe('2026-01-01T00:00:00Z');
+    expect(Date.parse(value.refreshExpiresAt)).toBeGreaterThan(Date.now() + 6 * 86400000);
+    expect((await google.connectionStatus()).state).toBe('connected');
+  });
+  it('does not turn a temporary token endpoint failure into revoked authorization', async () => {
+    const encrypted = seal(
+      { access_token: 'expired', refresh_token: 'original', expires_at: 0 },
+      config.ENCRYPTION_KEY,
+    );
+    await store.set('google.tokens', encrypted);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ error: 'temporarily_unavailable' }, 503)));
+    await expect(google.request('users/me/calendarList')).rejects.toMatchObject({ status: 503 });
+    expect(await store.get('google.tokens')).toBe(encrypted);
+    expect((await google.connectionStatus()).state).toBe('temporary_error');
+    expect(await google.connected()).toBe(true);
+  });
+  it('marks invalid_grant as requiring reconnection without deleting the existing encrypted record', async () => {
+    await store.set(
+      'google.tokens',
+      seal({ access_token: 'expired', refresh_token: 'original', expires_at: 0 }, config.ENCRYPTION_KEY),
+    );
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ error: 'invalid_grant' }, 400)));
+    await expect(google.request('users/me/calendarList')).rejects.toMatchObject({ status: 401 });
+    expect((await google.connectionStatus()).state).toBe('reauthorization_required');
+    expect(await google.connected()).toBe(false);
+    expect(await store.get('google.tokens')).toBeTruthy();
+  });
   it('uses pagination and commits a final sync token', async () => {
     const fetch = vi
       .fn()

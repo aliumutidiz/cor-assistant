@@ -191,6 +191,7 @@ export const operationSchema = z.union([
 export type OperationInput = z.input<typeof operationSchema>;
 export type Action = z.infer<typeof operationSchema>;
 export type Operation = {
+  actor?: { email: string; role: 'owner' | 'viewer' | 'editor'; memberId?: string };
   id: string;
   key: string;
   hash: string;

@@ -252,7 +252,11 @@ export class MemoryStore implements Store {
           });
         if (
           key.startsWith('assistant.request:') &&
-          (input.mode === 'delete' || keys.has('chat:web:' + key.slice('assistant.request:'.length)))
+          (input.mode === 'delete' ||
+            keys.has(
+              (value as { conversationKey?: string }).conversationKey ??
+                'chat:web:' + key.slice('assistant.request:'.length),
+            ))
         )
           this.kv.set(key, {
             ...(value as object),
@@ -266,7 +270,13 @@ export class MemoryStore implements Store {
         if (
           job.kind === 'assistant' &&
           job.payload.chatRequest &&
-          (input.mode === 'delete' || keys.has('chat:web:' + job.payload.chatRequest.id))
+          (input.mode === 'delete' ||
+            keys.has(
+              (
+                this.kv.get('assistant.request:' + job.payload.chatRequest.id) as
+                  { conversationKey?: string } | undefined
+              )?.conversationKey ?? 'chat:web:' + job.payload.chatRequest.id,
+            ))
         )
           job.payload.chatRequest.message = '[Removed from chat history]';
     }
@@ -633,14 +643,14 @@ export class PostgresStore implements Store {
         WHERE left(key,5)='chat:' AND EXISTS(SELECT 1 FROM changed) AND ($2::text='delete' OR key IN(SELECT regexp_replace(request_key,':(user|assistant)$','') FROM removed)) RETURNING key
       ), safe_requests AS (
         UPDATE kv SET value=(value-'result') || jsonb_build_object('status','failed','error','This reply was removed from local chat history.')
-        WHERE left(key,18)='assistant.request:' AND EXISTS(SELECT 1 FROM changed) AND ($2::text='delete' OR 'chat:web:'||substring(key FROM 19) IN(SELECT regexp_replace(request_key,':(user|assistant)$','') FROM removed)) RETURNING key
+        WHERE left(key,18)='assistant.request:' AND EXISTS(SELECT 1 FROM changed) AND ($2::text='delete' OR COALESCE(value->>'conversationKey','chat:web:'||substring(key FROM 19)) IN(SELECT regexp_replace(request_key,':(user|assistant)$','') FROM removed)) RETURNING key
       ), legacy AS (
         DELETE FROM kv WHERE key='assistant.history' AND $2::text='delete' AND EXISTS(SELECT 1 FROM changed) RETURNING key
       ), clarifications AS (
         DELETE FROM kv WHERE key LIKE 'assistant.clarification:%' AND EXISTS(SELECT 1 FROM changed) RETURNING key
       ), scrubbed_jobs AS (
         UPDATE jobs SET data=jsonb_set(data,'{payload,chatRequest,message}','"[Removed from chat history]"'::jsonb)
-        WHERE data->>'kind'='assistant' AND EXISTS(SELECT 1 FROM changed) AND ($2::text='delete' OR 'chat:web:'||(data#>>'{payload,chatRequest,id}') IN(SELECT regexp_replace(request_key,':(user|assistant)$','') FROM removed)) RETURNING id
+        WHERE data->>'kind'='assistant' AND EXISTS(SELECT 1 FROM changed) AND ($2::text='delete' OR COALESCE((SELECT value->>'conversationKey' FROM kv WHERE key='assistant.request:'||(data#>>'{payload,chatRequest,id}')),'chat:web:'||(data#>>'{payload,chatRequest,id}')) IN(SELECT regexp_replace(request_key,':(user|assistant)$','') FROM removed)) RETURNING id
       ) SELECT value FROM changed`,
       [input.expectedVersion, input.mode, input.messageId ?? null, randomUUID()],
     );

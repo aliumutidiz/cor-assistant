@@ -9,7 +9,7 @@ Legacy `/api/chat` remains available. Existing owner, CSRF, origin and rate-limi
 checks remain in force. Approving an operation immediately executes it and returns
 the persisted outcome; a second conversational instruction is unnecessary.
 
-Production API routes require the configured owner identity (Google owner login or Cloudflare Access); authentication endpoints and `/healthz` have their documented bootstrap exceptions. `/api/session` bootstraps a signed API session and returns its CSRF token. Subsequent `/api` requests need the cookie. Mutations require `Origin: APP_ORIGIN` and `X-Cor-Csrf`; operation/chat submissions also require a unique `Idempotency-Key` (8–160 allowed ASCII characters).
+Production API routes require the configured owner or an explicitly invited identity (Google login or Cloudflare Access); authentication endpoints and `/healthz` have their documented bootstrap exceptions. `/api/session` includes a server-verified actor and workspace owner, bootstraps a signed API session and returns its CSRF token. Subsequent `/api` requests need the cookie. Mutations require `Origin: APP_ORIGIN` and `X-Cor-Csrf`; operation/chat submissions also require a unique `Idempotency-Key` (8–160 allowed ASCII characters). Invited roles are enforced server-side with default denial for unlisted routes. See [shared workspace permissions](SHARED-WORKSPACE.md).
 
 The source of truth is `shared/contracts.ts`. Responses never include Google credentials or application secrets. Validation errors use HTTP 400, stale versions/onay conflicts 409, quota 429, disabled integrations 503, and provider timeout 504. Error bodies have `error`, optional `details`, optional `uncertain`.
 

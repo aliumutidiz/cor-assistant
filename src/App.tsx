@@ -77,6 +77,8 @@ import { AgyPanel, type AgyStatus } from './AgyPanel';
 import { CalendarCache } from './calendar-cache';
 import { PlannerDetail, type PlannerItem } from './PlannerDetail';
 import { TodayPanel } from './TodayPanel';
+import { SharingSettings } from './SharingSettings';
+import { GoogleConnectionHealth } from './GoogleConnectionHealth';
 import { ThemeControl } from './ThemeControl';
 import { ProfileSettings, SettingsWorkspace } from './SettingsWorkspace';
 const MemoryPanel = lazy(() => import('./MemoryPanel').then((module) => ({ default: module.MemoryPanel })));
@@ -181,6 +183,20 @@ export function App() {
   const [localPartial, setLocalPartial] = useState(false);
   const [plannerDetail, setPlannerDetail] = useState<PlannerItem>();
   const [layers, setLayers] = useState({ calendar: true, program: true, reminder: true, routine: true });
+  useEffect(() => {
+    if (!s?.owner) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem('cor.calendar.layers:' + s.owner) ?? 'null');
+      if (
+        saved &&
+        ['calendar', 'program', 'reminder', 'routine'].every((key) => typeof saved[key] === 'boolean')
+      )
+        setLayers(saved);
+      else setLayers({ calendar: true, program: true, reminder: true, routine: true });
+    } catch {
+      /* Storage is optional. */
+    }
+  }, [s?.owner]);
   const events: CalendarEvent[] = [
     ...(layers.calendar ? googleEvents : []),
     ...localItems.filter((item) => layers[item.source]),
@@ -524,6 +540,10 @@ export function App() {
     return () => window.removeEventListener('keydown', listener);
   }, []);
   const perform = async (action: OperationInput) => {
+    if (s?.actor?.role === 'viewer') {
+      setError('This workspace invitation allows viewing only.');
+      throw new Error('View-only access.');
+    }
     setBusy(true);
     setError('');
     try {
@@ -568,10 +588,13 @@ export function App() {
   };
   const send = async (e?: FormEvent, value?: string) => {
     e?.preventDefault();
+    if (s?.actor?.role === 'viewer') return;
     const message = value ?? prompt;
     if (!message.trim() || chatBusy || historyLoading || historyError) return;
     const requestId = crypto.randomUUID();
-    const exchangeId = 'chat:web:' + requestId;
+    const exchangeId = s?.actor?.memberId
+      ? `chat:web:member:${s.actor.memberId}:${requestId}`
+      : 'chat:web:' + requestId;
     setPrompt('');
     setChatOpen(true);
     stickToLatest.current = true;
@@ -835,6 +858,7 @@ export function App() {
               </div>
               {page === 'calendar' ? (
                 <button
+                  disabled={s.actor?.role === 'viewer'}
                   className="button primary"
                   onClick={() =>
                     setEventEditor({
@@ -850,13 +874,25 @@ export function App() {
                   Add event
                 </button>
               ) : page === 'routines' ? (
-                <button className="button primary" onClick={() => setRoutineEditor(null)}>
+                <button
+                  disabled={s.actor?.role === 'viewer'}
+                  className="button primary"
+                  onClick={() => setRoutineEditor(null)}
+                >
                   <Plus size={17} />
                   Create routine
                 </button>
               ) : null}
             </div>
           </div>
+          {s.actor?.memberId && (
+            <div className="demo-banner">
+              <span>
+                Shared workspace · {s.workspaceOwner} ·{' '}
+                {s.actor.role === 'editor' ? 'View and edit' : 'View only'}. Conversation history is shared.
+              </span>
+            </div>
+          )}
           {s?.demo && (
             <div className="demo-banner">
               <span className="status-dot" />
@@ -1029,7 +1065,15 @@ export function App() {
                           type="checkbox"
                           checked={layers[layer]}
                           onChange={(e) =>
-                            setLayers((current) => ({ ...current, [layer]: e.target.checked }))
+                            setLayers((current) => {
+                              const next = { ...current, [layer]: e.target.checked };
+                              try {
+                                localStorage.setItem('cor.calendar.layers:' + s.owner, JSON.stringify(next));
+                              } catch {
+                                /* Storage is optional. */
+                              }
+                              return next;
+                            })
                           }
                         />
                         {layer === 'calendar'
@@ -1491,12 +1535,17 @@ export function App() {
                     <details open={op.status === 'awaiting_approval' || op.status === 'unknown'}>
                       <summary>Action details</summary>
                       <code>{op.action.kind}</code>
+                      {op.actor && (
+                        <p className="muted">
+                          Requested by {op.actor.email} · {op.actor.role}
+                        </p>
+                      )}
                       {op.preview && <p className="memory-body">{op.preview.body}</p>}
                       <pre>{JSON.stringify(op.action, null, 2)}</pre>
                       {op.result !== undefined && <pre>{JSON.stringify(op.result, null, 2)}</pre>}
                     </details>
                     {op.error && <p className="error-text">{op.error}</p>}
-                    {op.status === 'awaiting_approval' && (
+                    {op.status === 'awaiting_approval' && !s.actor?.memberId && (
                       <div className="approval-actions">
                         <p>
                           Approval applies only to the content above. Expires:{' '}
@@ -1572,8 +1621,28 @@ export function App() {
               </button>
             </div>
           )}
-          {page === 'settings' && (
+          {page === 'settings' && s.actor?.memberId && (
+            <section className="profile-settings">
+              <h2>Your access</h2>
+              <p>
+                Signed in as {s.actor.email}. Workspace connections and permissions are managed by the owner.
+              </p>
+              <ThemeControl />
+              <button
+                className="button subtle"
+                onClick={() =>
+                  void api('/auth/logout', {})
+                    .then(() => window.location.assign('/'))
+                    .catch((e) => setError(e.message))
+                }
+              >
+                Sign out
+              </button>
+            </section>
+          )}
+          {page === 'settings' && !s.actor?.memberId && (
             <SettingsWorkspace
+              sharing={<SharingSettings />}
               profile={
                 <ProfileSettings session={s} perform={perform} refresh={async () => setS(await session())} />
               }
@@ -1589,13 +1658,16 @@ export function App() {
               assistant={<AgyPanel status={agyStatus} refresh={refreshAgy} />}
               voice={<VoiceSettingsPanel onChange={setVoiceStatus} />}
               account={
-                <Settings
-                  s={s}
-                  connect={connect}
-                  refreshSession={async () => setS(await session())}
-                  perform={perform}
-                  advanced={() => setAdvanced(true)}
-                />
+                <>
+                  <GoogleConnectionHealth connect={connect} />
+                  <Settings
+                    s={s}
+                    connect={connect}
+                    refreshSession={async () => setS(await session())}
+                    perform={perform}
+                    advanced={() => setAdvanced(true)}
+                  />
+                </>
               }
               signOut={
                 s.canLogout
@@ -1641,6 +1713,7 @@ export function App() {
         className={'assistant-panel ' + (chatOpen || page === 'assistant' ? 'open' : '')}
       >
         <ChatTools
+          canManage={!s.actor?.memberId}
           key={s.owner}
           busy={chatBusy || historyLoading || olderLoading}
           onContext={acceptChatContext}
@@ -1773,7 +1846,13 @@ export function App() {
                 {m.role === 'assistant' && <span className="message-author">C.O.R.</span>}
                 {m.createdAt && (
                   <small className="message-meta">
-                    {m.channel === 'telegram' ? 'Telegram · ' : m.channel === 'web' ? 'Web · ' : ''}
+                    {m.exchangeId?.includes('web:member:')
+                      ? 'Guest · '
+                      : m.channel === 'telegram'
+                        ? 'Telegram · '
+                        : m.channel === 'web'
+                          ? 'Web · '
+                          : ''}
                     {formatDate(m.createdAt, zone)}
                   </small>
                 )}
@@ -1821,6 +1900,7 @@ export function App() {
             Message C.O.R.
           </label>
           <textarea
+            disabled={s.actor?.role === 'viewer'}
             id="chat-input"
             ref={inputRef}
             rows={2}
@@ -1849,7 +1929,9 @@ export function App() {
             <span className="composer-hint">Enter to send · Shift + Enter for a new line</span>
             <button
               type="submit"
-              disabled={chatBusy || historyLoading || !!historyError || !prompt.trim()}
+              disabled={
+                s.actor?.role === 'viewer' || chatBusy || historyLoading || !!historyError || !prompt.trim()
+              }
               aria-label="Send message"
             >
               <ArrowRight size={20} />

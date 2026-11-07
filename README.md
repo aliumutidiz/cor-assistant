@@ -38,18 +38,21 @@ The wizard never overwrites an existing `.env`. An existing configuration takes 
 
 ## What it does
 
-| Area              | Available today                                                                                                               |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Calendar          | Day, week, month and agenda views; search, range export, cached navigation, timed and all-day events, recurrence and guests   |
-| Calendar controls | Validated event/calendar/sharing operations, current versions, conflict detection and explicit approval for sensitive changes |
-| Reminders         | One-off or event-relative reminders, rescheduling, cancellation and Telegram delivery without an LLM                          |
-| Routines          | Time zones, cron previews, pause/resume, manual runs, durable history; deterministic checks or AI daily/next-week briefings   |
-| Personal memory   | Ideas, purchases, facts, explicit tasks, owner profile, reusable weekly/monthly programs and shopping lists                   |
-| Conversations     | Full workspace, new chats, context reset, per-exchange forgetting, searchable history, exports and draft recovery             |
-| Telegram          | Owner allowlist, private/group destinations, text and voice commands, approval buttons and scheduled delivery                 |
-| Research          | Optional SearXNG search and bounded page reads, with citations and explicit availability limits                               |
-| Voice             | Optional offline transcription and opt-in Google speech generation with buffered playback and replay cache                    |
-| Appearance        | Light, dark and device theme; responsive desktop and mobile layouts                                                           |
+| Area              | Available today                                                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Calendar          | Day, week, month and agenda views; search, range export, cached navigation, timed and all-day events, recurrence and guests         |
+| Calendar controls | Validated event/calendar/sharing operations, current versions, conflict detection and explicit approval for sensitive changes       |
+| Reminders         | One-off or event-relative reminders, rescheduling, cancellation and Telegram delivery without an LLM                                |
+| Routines          | Time zones, cron previews, pause/resume, manual runs, durable history; deterministic checks or AI daily/next-week briefings         |
+| Personal memory   | Ideas, purchases, facts, explicit tasks, owner profile, reusable weekly/monthly programs and shopping lists                         |
+| Conversations     | Full workspace, new chats, context reset, per-exchange forgetting, searchable history, exports and draft recovery                   |
+| Telegram          | Owner allowlist, private/group destinations, text and voice commands, approval buttons and scheduled delivery                       |
+| Research          | Optional SearXNG search and bounded page reads, with citations and explicit availability limits                                     |
+| Voice             | Optional offline transcription and opt-in Google speech generation with buffered playback and replay cache                          |
+| Appearance        | Light, dark and device theme; responsive desktop and mobile layouts                                                                 |
+| Shared workspace  | Invited Google accounts with viewer/editor roles; owner-only connections and sensitive approvals. [Guide](docs/SHARED-WORKSPACE.md) |
+
+Calendar authorization renews automatically; connection health distinguishes temporary outages from expired grants. If your Google OAuth app is still in Testing, review [durable Google authorization](docs/GOOGLE-CONNECTION.md).
 
 ![Assistant workspace in dark mode](docs/images/assistant-dark.png)
 

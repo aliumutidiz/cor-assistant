@@ -71,6 +71,73 @@ async function setup(
   return { store, begin, url, cookie, callback, fetchMock };
 }
 describe('owner-only Google application login', () => {
+  it('accepts an invited Google account without granting owner connection or approval rights', async () => {
+    const h = await setup({ email: 'guest@example.org', sub: 'guest-subject' });
+    const member = {
+      id: crypto.randomUUID(),
+      email: 'guest@example.org',
+      role: 'editor',
+      createdAt: new Date().toISOString(),
+    };
+    await h.store.set('workspace.members', [member]);
+    const result = await app.inject({ url: h.callback, headers: { cookie: h.cookie } });
+    expect(result.statusCode).toBe(302);
+    const login = result.cookies.find((c) => c.name === '__Host-cor_owner')!;
+    const authCookie = `${login.name}=${login.value}`;
+    const bootstrap = await app.inject({ url: '/api/session', headers: { cookie: authCookie } });
+    expect(bootstrap.json().actor).toMatchObject({
+      email: member.email,
+      role: 'editor',
+      memberId: member.id,
+    });
+    expect(bootstrap.json().owner).toBe(member.email);
+    const apiCookie = bootstrap.cookies.find((c) => c.name === 'cor_session')!;
+    const headers = {
+      cookie: `${authCookie}; ${apiCookie.name}=${apiCookie.value}`,
+      origin: environment.APP_ORIGIN,
+      'x-cor-csrf': bootstrap.json().csrf,
+    };
+    expect((await app.inject({ url: '/api/routines', headers })).statusCode).toBe(200);
+    for (const path of [
+      '/api/workspace/members',
+      '/api/settings/telegram',
+      '/api/agy/console/read',
+      '/api/google/status',
+    ])
+      expect((await app.inject({ url: path, headers })).statusCode).toBe(403);
+    for (const path of [
+      '/api/oauth/connect',
+      '/api/operations/' + crypto.randomUUID() + '/approve',
+      '/api/chat/context',
+    ])
+      expect((await app.inject({ url: path, method: 'POST', headers, payload: {} })).statusCode).toBe(403);
+    await h.store.set('workspace.members', []);
+    expect((await app.inject({ url: '/api/routines', headers })).statusCode).toBe(401);
+  });
+  it('allows a viewer to read the workspace but rejects chat and edits', async () => {
+    const h = await setup({ email: 'viewer@example.org', sub: 'viewer-subject' });
+    await h.store.set('workspace.members', [
+      {
+        id: crypto.randomUUID(),
+        email: 'viewer@example.org',
+        role: 'viewer',
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    const result = await app.inject({ url: h.callback, headers: { cookie: h.cookie } });
+    const login = result.cookies.find((c) => c.name === '__Host-cor_owner')!;
+    const authCookie = `${login.name}=${login.value}`;
+    const bootstrap = await app.inject({ url: '/api/session', headers: { cookie: authCookie } });
+    const apiCookie = bootstrap.cookies.find((c) => c.name === 'cor_session')!;
+    const headers = {
+      cookie: `${authCookie}; ${apiCookie.name}=${apiCookie.value}`,
+      origin: environment.APP_ORIGIN,
+      'x-cor-csrf': bootstrap.json().csrf,
+    };
+    expect((await app.inject({ url: '/api/chat/history', headers })).statusCode).toBe(200);
+    for (const path of ['/api/operations', '/api/chat', '/api/chat/requests', '/api/sync'])
+      expect((await app.inject({ url: path, method: 'POST', headers, payload: {} })).statusCode).toBe(403);
+  });
   it('requires configured Google authentication with an exact same-origin callback', () => {
     expect(() => loadConfig(environment)).not.toThrow();
     for (const patch of [

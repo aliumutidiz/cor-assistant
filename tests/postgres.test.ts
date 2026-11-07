@@ -334,4 +334,34 @@ describe('PostgreSQL repository against an embedded PostgreSQL engine', () => {
     ).rejects.toMatchObject({ status: 409 });
     expect((await store.reminder(id))?.state).toBe('canceled');
   });
+  it('forgets guest exchanges without retaining or resurrecting their durable request payload', async () => {
+    const id = crypto.randomUUID(),
+      key = 'chat:web:member:' + crypto.randomUUID() + ':' + id;
+    await store.set('assistant.request:' + id, {
+      conversationKey: key,
+      status: 'succeeded',
+      result: { message: 'Guest reply' },
+    });
+    await store.enqueue({
+      ...newJob('assistant', 'assistant:' + id, { chatRequest: { id, message: 'Guest request' } }),
+      status: 'succeeded',
+    });
+    await store.appendConversation(key, 'Guest request', 'Guest reply');
+    const row = (await store.conversation()).find((item) => item.exchangeId === key)!;
+    const state = await store.get<{ version: number }>('conversation.state');
+    await store.changeConversation({
+      expectedVersion: state?.version ?? 1,
+      mode: 'forget',
+      messageId: row.id,
+    });
+    expect(await store.get('assistant.request:' + id)).toMatchObject({
+      status: 'failed',
+      error: 'This reply was removed from local chat history.',
+    });
+    expect(
+      (await store.jobs()).find((item) => item.payload.chatRequest?.id === id)?.payload.chatRequest?.message,
+    ).toBe('[Removed from chat history]');
+    await db.exec(await readFile(new URL('../server/schema.sql', import.meta.url), 'utf8'));
+    expect((await store.conversation()).some((item) => item.exchangeId === key)).toBe(false);
+  });
 });

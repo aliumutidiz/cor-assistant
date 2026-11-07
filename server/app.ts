@@ -25,6 +25,7 @@ import { ChatRequests, chatRequestRoutes } from './chat-requests.js';
 import { ResearchService, researchRoutes } from './research.js';
 import { Connections, connectionRoutes } from './connections.js';
 import { plannerRoutes } from './planner.js';
+import { workspaceRoutes } from './workspace-access.js';
 export async function createApp(
   config: Config,
   store: Store,
@@ -64,6 +65,7 @@ export async function createApp(
   });
   const auth = new OwnerAuth(config, store);
   await security(app, config, store, auth);
+  workspaceRoutes(app, store, config.OWNER_EMAIL);
   const agyManagement = overrides.agyManagement ?? new AgyManagement(config);
   agyManagementRoutes(app, agyManagement);
   memoryRoutes(app, store);
@@ -83,7 +85,13 @@ export async function createApp(
         details: error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
       });
     if (error instanceof AppError)
-      return reply.code(error.status).send({ error: error.message, uncertain: error.uncertain });
+      return reply
+        .code(error.status)
+        .send({
+          error: error.message,
+          uncertain: error.uncertain,
+          ...(error.code === 'API_SESSION_EXPIRED' ? { code: error.code } : {}),
+        });
     const code = (error as { statusCode?: number }).statusCode;
     const status = typeof code === 'number' && code < 500 ? code : 500;
     if (status === 500) {
@@ -99,6 +107,11 @@ export async function createApp(
     });
   });
   const google = new GoogleCalendar(store, config);
+  app.get('/api/google/status', () => google.connectionStatus());
+  app.post('/api/google/check', async () => {
+    await google.calendars();
+    return google.connectionStatus();
+  });
   const calendar = overrides.calendar ?? (config.DEMO_MODE ? new DemoCalendar() : google);
   const routines = new RoutineService(store);
   const operations = new OperationService(store, calendar, routines);

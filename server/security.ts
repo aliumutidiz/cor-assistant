@@ -5,9 +5,11 @@ import type { Config } from './config.js';
 import type { Store } from './repositories.js';
 import { AppError } from './errors.js';
 import { OwnerAuth, isLoginCallback } from './login.js';
+import { resolveActor, authorizeWorkspace, type WorkspaceActor } from './workspace-access.js';
 declare module 'fastify' {
   interface FastifyRequest {
     ownerSession: { id: string; csrf: string };
+    workspaceActor: WorkspaceActor;
   }
 }
 export async function security(app: FastifyInstance, config: Config, store: Store, auth?: OwnerAuth) {
@@ -18,18 +20,26 @@ export async function security(app: FastifyInstance, config: Config, store: Stor
       ? createRemoteJWKSet(new URL(issuer + '/cdn-cgi/access/certs'))
       : undefined;
   app.addHook('onRequest', async (req, reply) => {
+    let actor: WorkspaceActor = { email: config.OWNER_EMAIL || 'local-owner', role: 'owner' };
     if (req.url === '/healthz') return;
     const path = new URL(req.url, 'http://localhost').pathname;
     if (prod && config.AUTH_MODE === 'google') {
       if (req.method === 'GET' && (path === '/api/auth/login' || isLoginCallback(req.url))) return;
-      if (path.startsWith('/api/') && !(await auth?.identity(req, reply)))
-        return reply.code(401).send({ error: 'C.O.R. için giriş yapın.', loginRequired: true });
+      if (path.startsWith('/api/')) {
+        const identity = await auth?.identity(req, reply);
+        const resolved = identity ? await resolveActor(store, config.OWNER_EMAIL, identity.email) : undefined;
+        if (!resolved)
+          return reply.code(401).send({ error: 'C.O.R. için giriş yapın.', loginRequired: true });
+        actor = resolved;
+      }
     } else if (prod) {
       const assertion = req.headers['cf-access-jwt-assertion'];
       if (typeof assertion !== 'string') throw new AppError(401, 'Giriş gerekli.');
       try {
         const { payload } = await jwtVerify(assertion, jwks!, { issuer, audience: config.CF_ACCESS_AUD });
-        if (String(payload.email).toLowerCase() !== config.OWNER_EMAIL.toLowerCase()) throw Error();
+        const resolved = await resolveActor(store, config.OWNER_EMAIL, String(payload.email));
+        if (!resolved) throw Error();
+        actor = resolved;
       } catch {
         throw new AppError(403, 'Erişim reddedildi.');
       }
@@ -39,18 +49,27 @@ export async function security(app: FastifyInstance, config: Config, store: Stor
         throw new AppError(403, 'Geliştirme yalnızca yerel bilgisayardan kullanılabilir.');
     }
     if (!req.url.startsWith('/api/')) return;
+    req.workspaceActor = actor;
+    authorizeWorkspace(actor, req.method, path);
     const cookie = req.cookies.cor_session;
     const unsigned = cookie ? req.unsignCookie(cookie) : undefined;
     let session = unsigned?.valid
-      ? await store.get<{ id: string; csrf: string; expires: number }>('session:' + unsigned.value)
+      ? await store.get<{ id: string; csrf: string; expires: number; principal?: string }>(
+          'session:' + unsigned.value,
+        )
       : undefined;
-    if (!session || session.expires < Date.now()) {
+    if (
+      !session ||
+      session.expires < Date.now() ||
+      (session.principal && session.principal !== actor.email)
+    ) {
       if (req.method !== 'GET' || !req.url.startsWith('/api/session'))
-        throw new AppError(401, 'Oturum süresi doldu. Sayfayı yenileyin.');
+        throw new AppError(401, 'Oturum süresi doldu. Sayfayı yenileyin.', false, 'API_SESSION_EXPIRED');
       session = {
         id: randomBytes(32).toString('base64url'),
         csrf: randomBytes(32).toString('base64url'),
         expires: Date.now() + 12 * 3600000,
+        principal: actor.email,
       };
       await store.set('session:' + session.id, session);
       reply.setCookie('cor_session', session.id, {

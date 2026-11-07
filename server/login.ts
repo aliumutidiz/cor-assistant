@@ -4,11 +4,18 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Config } from './config.js';
 import type { Store } from './repositories.js';
 import { AppError } from './errors.js';
+import { resolveActor } from './workspace-access.js';
 
 const opaque = () => randomBytes(32).toString('base64url');
 const digest = (value: string) => createHash('sha256').update(value).digest('base64url');
 const duration = 30 * 86400000;
-export type OwnerLogin = { subject: string; email: string; expires: number; createdAt?: number };
+export type OwnerLogin = {
+  subject: string;
+  email: string;
+  expires: number;
+  createdAt?: number;
+  memberId?: string;
+};
 export const ownerCookie = (config: Config) =>
   config.NODE_ENV === 'production' ? '__Host-cor_owner' : 'cor_owner';
 export const flowCookie = (config: Config) =>
@@ -45,9 +52,12 @@ export class OwnerAuth {
     const id = this.readCookie(req, ownerCookie(this.config));
     if (!id || !/^[A-Za-z0-9_-]{43}$/.test(id)) return;
     const session = await this.store.get<OwnerLogin | null>('owner-session:' + digest(id));
-    if (!session || session.expires <= Date.now() || session.email !== this.config.OWNER_EMAIL.toLowerCase())
-      return;
-    const subject = await this.store.get<string>('auth.owner-subject');
+    if (!session || session.expires <= Date.now()) return;
+    const actor = await resolveActor(this.store, this.config.OWNER_EMAIL, session.email);
+    if (!actor || actor.memberId !== session.memberId) return;
+    const subject = await this.store.get<string>(
+      actor.memberId ? 'workspace.subject:' + actor.memberId : 'auth.owner-subject',
+    );
     if (!subject || subject !== session.subject) return;
     // Explicit owner preference: remember this browser for 30 days, not indefinitely.
     // Upgrade only a still-valid legacy session; expired/revoked sessions never revive.
@@ -134,23 +144,33 @@ export class OwnerAuth {
         payload.nonce !== record.nonce ||
         payload.email_verified !== true ||
         typeof payload.email !== 'string' ||
-        payload.email.toLowerCase() !== this.config.OWNER_EMAIL.toLowerCase() ||
         !payload.sub ||
         (payload.azp !== undefined && payload.azp !== this.config.GOOGLE_CLIENT_ID)
       )
         throw Error();
-      const subject = await this.store.get<string>('auth.owner-subject');
+      const actor = await resolveActor(this.store, this.config.OWNER_EMAIL, payload.email);
+      if (!actor) throw Error();
+      const subject = await this.store.get<string>(
+        actor.memberId ? 'workspace.subject:' + actor.memberId : 'auth.owner-subject',
+      );
       if (subject && subject !== payload.sub) throw Error();
     } catch {
       throw new AppError(403, 'Bu hesap C.O.R. için yetkili değil.');
     }
-    await this.store.set('auth.owner-subject', payload.sub);
+    const actor = await resolveActor(this.store, this.config.OWNER_EMAIL, String(payload.email));
+    if (!actor) throw new AppError(403, 'Invitation is no longer active.');
+    const boundSubject = await this.store.setIfAbsent(
+      actor.memberId ? 'workspace.subject:' + actor.memberId : 'auth.owner-subject',
+      payload.sub,
+    );
+    if (boundSubject !== payload.sub) throw new AppError(403, 'Account identity changed.');
     // Rotate both authentication and CSRF sessions after successful login.
     await this.revoke(req);
     const id = opaque();
     await this.store.set('owner-session:' + digest(id), {
       subject: payload.sub,
-      email: this.config.OWNER_EMAIL.toLowerCase(),
+      email: actor.email,
+      ...(actor.memberId ? { memberId: actor.memberId } : {}),
       expires: Date.now() + duration,
       createdAt: Date.now(),
     });

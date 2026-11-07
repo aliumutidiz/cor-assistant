@@ -8,6 +8,7 @@ import { nextRun } from './services.js';
 import type { AssistantService } from './provider.js';
 import type { Config } from './config.js';
 import { requestKey } from './security.js';
+import { workspaceActor, members, activityView } from './workspace-access.js';
 import { routineInput } from '../shared/contracts.js';
 import { AppError } from './errors.js';
 const params = z.object({ id: z.uuid() });
@@ -36,7 +37,11 @@ export class ApiController extends BaseController {
     this.ok(reply, {
       csrf: req.ownerSession.csrf,
       demo: this.config.DEMO_MODE,
-      owner: this.config.OWNER_EMAIL || 'Yerel kullanıcı',
+      owner: req.workspaceActor.memberId
+        ? req.workspaceActor.email
+        : this.config.OWNER_EMAIL || 'Yerel kullanıcı',
+      workspaceOwner: this.config.OWNER_EMAIL,
+      actor: req.workspaceActor,
       canLogout: this.config.NODE_ENV === 'production' && this.config.AUTH_MODE === 'google',
       googleConnected: await this.calendar.connected(),
       agyEnabled: this.config.AGY_ENABLED,
@@ -49,7 +54,9 @@ export class ApiController extends BaseController {
         status: (await this.store.get('telegram.status')) ?? { state: 'disabled' },
       },
       onboardingRequired:
-        !this.config.DEMO_MODE && !(await this.store.get<{ onboarded?: boolean }>('preferences'))?.onboarded,
+        !req.workspaceActor.memberId &&
+        !this.config.DEMO_MODE &&
+        !(await this.store.get<{ onboarded?: boolean }>('preferences'))?.onboarded,
       preferences: (await this.store.get('preferences')) ?? { timeZone: 'Europe/Istanbul', language: 'en' },
     });
   calendars = async (_req: FastifyRequest, reply: FastifyReply) =>
@@ -86,10 +93,20 @@ export class ApiController extends BaseController {
     const r = routineInput.parse(req.body);
     return this.ok(reply, { nextRun: nextRun(r.cron, r.timeZone) });
   };
-  history = async (_req: FastifyRequest, reply: FastifyReply) =>
-    this.ok(reply, { operations: await this.store.operations(), jobs: await this.store.jobs() });
+  history = async (req: FastifyRequest, reply: FastifyReply) =>
+    this.ok(reply, activityView(await this.store.operations(), await this.store.jobs(), req.workspaceActor));
   submit = async (req: FastifyRequest, reply: FastifyReply) =>
-    this.ok(reply, await this.operations.submit(req.body, requestKey(req)));
+    this.ok(
+      reply,
+      await workspaceActor.run(req.workspaceActor, () =>
+        this.operations.submit(
+          req.body,
+          req.workspaceActor.memberId
+            ? `member:${req.workspaceActor.memberId}:${requestKey(req)}`
+            : requestKey(req),
+        ),
+      ),
+    );
   approve = async (req: FastifyRequest, reply: FastifyReply) => {
     const { id } = params.parse(req.params);
     const { hash } = z
@@ -115,7 +132,17 @@ export class ApiController extends BaseController {
     req.raw.on('aborted', () => abort.abort());
     return this.ok(
       reply,
-      await this.assistant.chat(message, requestKey(req), abort.signal, 'web', contextId),
+      await workspaceActor.run(req.workspaceActor, () =>
+        this.assistant.chat(
+          message,
+          req.workspaceActor.memberId
+            ? `web:member:${req.workspaceActor.memberId}:${requestKey(req)}`
+            : requestKey(req),
+          abort.signal,
+          req.workspaceActor.memberId ? 'web:member:' + req.workspaceActor.memberId : 'web',
+          contextId,
+        ),
+      ),
     );
   };
   conversation = async (req: FastifyRequest, reply: FastifyReply) => {
@@ -170,11 +197,22 @@ export class ApiController extends BaseController {
       if (busy || reply.raw.destroyed || reply.raw.writableEnded) return;
       busy = true;
       try {
+        if (
+          req.workspaceActor.memberId &&
+          !(await members(this.store)).some(
+            (member) =>
+              member.id === req.workspaceActor.memberId && member.email === req.workspaceActor.email,
+          )
+        ) {
+          reply.raw.end();
+          return;
+        }
         const operations = await this.store.operations();
         const jobs = await this.store.jobs();
         if (reply.raw.destroyed || reply.raw.writableEnded) return;
-        reply.raw.write('event: operations\ndata: ' + JSON.stringify(operations) + '\n\n');
-        reply.raw.write('event: jobs\ndata: ' + JSON.stringify(jobs) + '\n\n');
+        const visible = activityView(operations, jobs, req.workspaceActor);
+        reply.raw.write('event: operations\ndata: ' + JSON.stringify(visible.operations) + '\n\n');
+        reply.raw.write('event: jobs\ndata: ' + JSON.stringify(visible.jobs) + '\n\n');
       } catch {
         if (!reply.raw.destroyed && !reply.raw.writableEnded) reply.raw.write('event: error\ndata: {}\n\n');
       } finally {

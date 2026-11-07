@@ -8,7 +8,10 @@ import { requestKey } from './security.js';
 import { digest } from './crypto.js';
 import { AppError } from './errors.js';
 import { containsCredential } from './sensitive.js';
+import { workspaceActor, validateActor, type WorkspaceActor } from './workspace-access.js';
 type RequestState = {
+  conversationKey?: string;
+  actor?: WorkspaceActor;
   hash: string;
   contextId?: string;
   status: 'queued' | 'running' | 'succeeded' | 'failed';
@@ -24,7 +27,8 @@ export class ChatRequests {
     private store: Store,
     private assistant: AssistantService,
   ) {}
-  async submit(id: string, message: string, expectedContext?: string) {
+  async submit(id: string, message: string, expectedContext?: string, actor?: WorkspaceActor) {
+    await validateActor(this.store, actor);
     const context = await readConversationState(this.store);
     if (expectedContext && expectedContext !== context.contextId)
       throw new AppError(409, 'Conversation context changed. Reload the conversation before sending.');
@@ -32,10 +36,12 @@ export class ChatRequests {
       throw new AppError(400, 'Bağlantı anahtarlarını sohbete yazma. Ayarlar alanını kullan.');
     const state = await this.store.setIfAbsent<RequestState>('assistant.request:' + id, {
       hash: digest(message),
+      conversationKey: actor?.memberId ? `chat:web:member:${actor.memberId}:${id}` : 'chat:web:' + id,
+      ...(actor ? { actor } : {}),
       contextId: context.contextId,
       status: 'queued',
     });
-    if (state.hash !== digest(message))
+    if (state.hash !== digest(message) || state.actor?.memberId !== actor?.memberId)
       throw new AppError(409, 'İstek anahtarı başka bir mesajla kullanılmış.');
     if (state.status === 'queued')
       await this.store.enqueue(newJob('assistant', 'assistant:' + id, { chatRequest: { id, message } }));
@@ -80,12 +86,15 @@ export class ChatRequests {
     }
     try {
       await this.store.set(key, { ...state, status: 'running' });
-      const result = await this.assistant.chat(
-        message,
-        'web:' + id,
-        AbortSignal.any([this.stopSignal.signal, AbortSignal.timeout(8 * 60000)]),
-        'web',
-        state.contextId,
+      await validateActor(this.store, state.actor);
+      const result = await workspaceActor.run(state.actor ?? { email: '', role: 'owner' }, () =>
+        this.assistant.chat(
+          message,
+          state.actor?.memberId ? `web:member:${state.actor.memberId}:${id}` : 'web:' + id,
+          AbortSignal.any([this.stopSignal.signal, AbortSignal.timeout(8 * 60000)]),
+          state.actor?.memberId ? 'web:member:' + state.actor.memberId : 'web',
+          state.contextId,
+        ),
       );
       await this.store.set(key, { ...state, status: 'succeeded', result });
       job.status = 'succeeded';
@@ -101,7 +110,7 @@ export class ChatRequests {
         e instanceof AppError ? e.message : 'Sohbet tamamlanamadı. İşlem geçmişinden durumu kontrol et.';
       const context = await readConversationState(this.store);
       if (!containsCredential(message) && (!state.contextId || state.contextId === context.contextId))
-        await this.store.appendConversation('chat:web:' + id, message, error);
+        await this.store.appendConversation(state.conversationKey ?? 'chat:web:' + id, message, error);
       await this.store.set(key, { ...state, status: 'failed', error });
       job.status = 'failed';
       job.error = error;
@@ -124,7 +133,7 @@ export function chatRequestRoutes(app: FastifyInstance, service: ChatRequests) {
         .object({ message: z.string().trim().min(1).max(6000), contextId: z.string().max(80).optional() })
         .strict()
         .parse(req.body);
-      return reply.code(202).send(await service.submit(id, message, contextId));
+      return reply.code(202).send(await service.submit(id, message, contextId, req.workspaceActor));
     },
   );
   app.get('/api/chat/requests/:id', async (req) =>

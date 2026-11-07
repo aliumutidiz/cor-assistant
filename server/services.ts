@@ -21,6 +21,7 @@ import { memoryInput } from '../shared/memory.js';
 import { containsCredential } from './sensitive.js';
 import { ReminderService } from './reminder-service.js';
 import { ProgramNotifications } from './program-notifications.js';
+import { workspaceActor, validateActor } from './workspace-access.js';
 export function nextRun(cron: string, timeZone: string, from = new Date()) {
   try {
     if (cron.trim().split(/\s+/).length !== 5) throw Error();
@@ -237,9 +238,16 @@ export class OperationService {
     this.reminders = new ReminderService(store, calendar);
   }
   async submit(input: unknown, key: string) {
+    const actor = workspaceActor.getStore();
+    await validateActor(this.store, actor);
     const action = validateAction(input),
       hash = digest(action),
       now = new Date().toISOString();
+    if (
+      actor?.memberId &&
+      (action.kind === 'preferences.update' || ('record' in action && action.record.kind === 'profile'))
+    )
+      throw new AppError(403, 'Only the owner can change the owner profile and preferences.');
     const existing = await this.store.operationForKey(key);
     if (existing) {
       if (existing.hash !== hash) throw new AppError(409, 'Aynı istek anahtarı farklı içerikle kullanıldı.');
@@ -262,6 +270,8 @@ export class OperationService {
       if (!current || current.version !== action.version)
         throw new AppError(409, 'Kayıt değişmiş. Güncel sürümü yeniden yükle.');
       preview = { title: current.title, body: current.body.slice(0, 1000), kind: current.kind };
+      if (actor?.memberId && current.kind === 'profile')
+        throw new AppError(403, 'Only the owner can change owner profile records.');
     }
     if ('eventId' in action && action.eventId && action.kind !== 'event.create') {
       const current = (await this.calendar.inspect('event', action.calendarId, action.eventId)) as
@@ -293,6 +303,7 @@ export class OperationService {
       }
     }
     const op: Operation = {
+      ...(actor ? { actor } : {}),
       id: randomUUID(),
       key,
       hash,
@@ -345,6 +356,7 @@ export class OperationService {
     if (!(await this.store.transition(op, 'queued'))) return { skipped: true };
     let calendarApplied = false;
     try {
+      await validateActor(this.store, op.actor);
       const a = op.action;
       let result: unknown;
       if (

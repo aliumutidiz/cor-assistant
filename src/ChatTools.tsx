@@ -7,10 +7,12 @@ export function ChatTools({
   busy,
   onContext,
   onChanged,
+  canManage = true,
 }: {
   busy: boolean;
   onContext: (state: ConversationState) => void;
   onChanged: () => Promise<void>;
+  canManage?: boolean;
 }) {
   const [state, setState] = useState<ConversationState>();
   const [open, setOpen] = useState(false),
@@ -121,10 +123,10 @@ export function ChatTools({
       {open && (
         <div className="chat-tools-panel">
           <div className="chat-tools-actions">
-            <button disabled={busy || working || !state} onClick={() => setPending('new')}>
+            <button disabled={!canManage || busy || working || !state} onClick={() => setPending('new')}>
               New chat
             </button>
-            <button disabled={busy || working || !state} onClick={() => setPending('reset')}>
+            <button disabled={!canManage || busy || working || !state} onClick={() => setPending('reset')}>
               Reset context
             </button>
             <button disabled={working} onClick={() => void search()}>
@@ -136,7 +138,7 @@ export function ChatTools({
             <button disabled={working} onClick={() => void download('json')}>
               Export JSON
             </button>
-            <button disabled={busy || working || !state} onClick={() => setPending('delete')}>
+            <button disabled={!canManage || busy || working || !state} onClick={() => setPending('delete')}>
               Delete local history
             </button>
           </div>
@@ -193,7 +195,7 @@ export function ChatTools({
                 </small>
                 <MarkdownMessage text={r.text} />
                 <button
-                  disabled={busy || working || !state || r.channel === 'legacy'}
+                  disabled={!canManage || busy || working || !state || r.channel === 'legacy'}
                   title={
                     r.channel === 'legacy' ? 'Migrated entries require full archive deletion.' : undefined
                   }

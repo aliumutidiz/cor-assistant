@@ -7,7 +7,21 @@ import { seal, unseal } from './crypto.js';
 import { AppError } from './errors.js';
 import type { Action, Calendar, CalendarEvent } from '../shared/contracts.js';
 const part = encodeURIComponent;
-type Tokens = { access_token: string; refresh_token?: string; expires_at: number };
+type Tokens = {
+  access_token: string;
+  refresh_token?: string;
+  expires_at: number;
+  connectedAt?: string;
+  refreshExpiresAt?: string;
+};
+export type GoogleConnectionStatus = {
+  state:
+    'not_connected' | 'connected' | 'reauthorization_required' | 'temporary_error' | 'configuration_error';
+  checkedAt?: string;
+  message?: string;
+  connectedAt?: string;
+  refreshExpiresAt?: string;
+};
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 export interface CalendarGateway {
   calendars(): Promise<Calendar[]>;
@@ -30,7 +44,22 @@ export class GoogleCalendar implements CalendarGateway {
     private config: Config,
   ) {}
   async connected() {
-    return Boolean(await this.store.get('google.tokens'));
+    return (
+      Boolean(await this.store.get('google.tokens')) &&
+      (await this.connectionStatus()).state !== 'reauthorization_required'
+    );
+  }
+  async connectionStatus(): Promise<GoogleConnectionStatus> {
+    const encrypted = await this.store.get<string>('google.tokens');
+    if (!encrypted) return { state: 'not_connected' };
+    const tokens = unseal<Tokens>(encrypted, this.config.ENCRYPTION_KEY);
+    const status = await this.store.get<GoogleConnectionStatus>('google.connection-status');
+    return {
+      state: 'connected',
+      ...status,
+      connectedAt: tokens.connectedAt,
+      refreshExpiresAt: tokens.refreshExpiresAt,
+    };
   }
   async authorization(sessionId: string) {
     if (!this.config.GOOGLE_CLIENT_ID || !this.config.GOOGLE_CLIENT_SECRET)
@@ -82,43 +111,85 @@ export class GoogleCalendar implements CalendarGateway {
       access_token: String(raw.access_token),
       refresh_token: raw.refresh_token,
       expires_at: Date.now() + Number(raw.expires_in) * 1000,
+      connectedAt: new Date().toISOString(),
+      ...(raw.refresh_token_expires_in
+        ? { refreshExpiresAt: new Date(Date.now() + raw.refresh_token_expires_in * 1000).toISOString() }
+        : {}),
     });
   }
   private async exchange(params: Record<string, string>) {
-    const r = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      signal: AbortSignal.timeout(20000),
-      body: new URLSearchParams({
-        ...params,
-        client_id: this.config.GOOGLE_CLIENT_ID,
-        client_secret: this.config.GOOGLE_CLIENT_SECRET,
-      }),
-    });
-    if (!r.ok) throw new AppError(401, 'Google oturumu yenilenemedi. Yeniden bağlanın.');
+    let r: Response;
+    try {
+      r = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        signal: AbortSignal.timeout(20000),
+        body: new URLSearchParams({
+          ...params,
+          client_id: this.config.GOOGLE_CLIENT_ID,
+          client_secret: this.config.GOOGLE_CLIENT_SECRET,
+        }),
+      });
+    } catch {
+      await this.store.set('google.connection-status', {
+        state: 'temporary_error',
+        checkedAt: new Date().toISOString(),
+        message: 'Google could not be reached. Existing authorization is preserved.',
+      });
+      throw new AppError(503, 'Google bağlantısında geçici kesinti var. İznin silinmedi; tekrar dene.');
+    }
+    if (!r.ok) {
+      const error = (await r.json().catch(() => ({}))) as { error?: string };
+      const expired = error.error === 'invalid_grant';
+      const configuration = ['invalid_client', 'unauthorized_client'].includes(error.error ?? '');
+      const message = expired
+        ? 'Google authorization expired or was revoked. Reconnect; if this repeats weekly, check the OAuth publishing status.'
+        : configuration
+          ? 'The owner must check Google OAuth client configuration.'
+          : 'Google is temporarily unavailable. Existing authorization is preserved.';
+      await this.store.set('google.connection-status', {
+        state: expired
+          ? 'reauthorization_required'
+          : configuration
+            ? 'configuration_error'
+            : 'temporary_error',
+        checkedAt: new Date().toISOString(),
+        message,
+      });
+      throw new AppError(expired ? 401 : 503, message);
+    }
     return z
       .object({
         access_token: z.string().min(1),
         expires_in: z.coerce.number().positive().max(86400),
         refresh_token: z.string().min(1).optional(),
         id_token: z.string().min(1).optional(),
+        refresh_token_expires_in: z.coerce.number().positive().optional(),
       })
       .parse(await r.json());
   }
   private async save(t: Tokens) {
     await this.store.set('google.tokens', seal(t, this.config.ENCRYPTION_KEY));
+    await this.store.set('google.connection-status', {
+      state: 'connected',
+      checkedAt: new Date().toISOString(),
+    });
   }
-  private async token() {
+  private async token(forceRefresh = false) {
     const encrypted = await this.store.get<string>('google.tokens');
     if (!encrypted) throw new AppError(409, 'Önce Google Takvim hesabınızı bağlayın.');
     const t = unseal<Tokens>(encrypted, this.config.ENCRYPTION_KEY);
-    if (t.expires_at > Date.now() + 60000) return t.access_token;
+    if (!forceRefresh && t.expires_at > Date.now() + 60000) return t.access_token;
     this.refreshing ??= (async () => {
       if (!t.refresh_token) throw new AppError(401, 'Google hesabını yeniden bağlayın.');
       const raw = await this.exchange({ grant_type: 'refresh_token', refresh_token: t.refresh_token });
       const next = {
+        ...t,
         access_token: String(raw.access_token),
-        refresh_token: t.refresh_token,
+        refresh_token: raw.refresh_token ?? t.refresh_token,
         expires_at: Date.now() + Number(raw.expires_in) * 1000,
+        ...(raw.refresh_token_expires_in
+          ? { refreshExpiresAt: new Date(Date.now() + raw.refresh_token_expires_in * 1000).toISOString() }
+          : {}),
       };
       await this.save(next);
       return next;
@@ -129,8 +200,8 @@ export class GoogleCalendar implements CalendarGateway {
       this.refreshing = undefined;
     }
   }
-  async request<T>(path: string, method = 'GET', body?: unknown, etag?: string): Promise<T> {
-    const token = await this.token();
+  async request<T>(path: string, method = 'GET', body?: unknown, etag?: string, renewed = false): Promise<T> {
+    const token = await this.token(renewed);
     let r: Response;
     try {
       r = await fetch('https://www.googleapis.com/calendar/v3/' + path, {
@@ -153,7 +224,18 @@ export class GoogleCalendar implements CalendarGateway {
       );
     }
     if (!r.ok) {
-      if (r.status === 401) throw new AppError(401, 'Google oturumu geçersiz. Yeniden bağlanın.');
+      if (r.status === 401 && method === 'GET' && !renewed) {
+        await r.body?.cancel();
+        return this.request<T>(path, method, body, etag, true);
+      }
+      if (r.status === 401) {
+        await this.store.set('google.connection-status', {
+          state: 'reauthorization_required',
+          checkedAt: new Date().toISOString(),
+          message: 'Google rejected this authorization. Reconnect Calendar.',
+        });
+        throw new AppError(401, 'Google oturumu geçersiz. Yeniden bağlanın.');
+      }
       if (r.status === 412) throw new AppError(409, 'Takvim kaydı değişmiş. Yenileyip yeniden deneyin.');
       if (r.status === 410) throw new AppError(410, 'Senkronizasyon belirteci geçersiz.');
       throw new AppError(

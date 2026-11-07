@@ -34,7 +34,7 @@ ON CONFLICT(request_key) DO NOTHING;
 -- Recover historical failed web exchanges that were journaled but not archived.
 -- Removal tombstones and scrubbed payloads are deliberately excluded.
 INSERT INTO conversation_messages(request_key,role,text,created_at)
-SELECT 'chat:web:'||(j.data#>>'{payload,chatRequest,id}')||':'||entry.role,entry.role,entry.text,entry.at
+SELECT COALESCE(k.value->>'conversationKey','chat:web:'||(j.data#>>'{payload,chatRequest,id}'))||':'||entry.role,entry.role,entry.text,entry.at
 FROM jobs j JOIN kv k ON k.key='assistant.request:'||(j.data#>>'{payload,chatRequest,id}')
 CROSS JOIN LATERAL (VALUES
  ('user',j.data#>>'{payload,chatRequest,message}',j.scheduled_at),

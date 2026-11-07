@@ -1,0 +1,11 @@
+# Durable Google Calendar authorization
+
+C.O.R. requests offline authorization and renews short-lived access tokens using the encrypted refresh token. A rotated refresh token replaces the old one. If Google provides a refresh-token lifetime, the application retains and displays its expiry. Tokens and client secrets never go to the model or invited workspace members.
+
+**Settings → Calendar & security → Google connection health** displays saved authorization status and provides an explicit connection check. Temporary network/token endpoint failures keep existing authorization and return a temporary error. `invalid_grant` requires owner reauthorization; invalid client configuration requires owner setup repair. A saved token is not proof of a currently working connection; use Check connection to verify it.
+
+Google OAuth applications with external audience and **Testing** publishing status can receive Calendar refresh tokens that expire after seven days. In the owner's Google Cloud project, open **Google Auth Platform → Audience**, check the publishing status, and move to **In production** when ready. Then reconnect Calendar once to obtain a new grant. Personal workspace access remains controlled by C.O.R.; changing OAuth publishing status does not add members or make private records public. Google may show an unverified-app warning or require verification depending on distribution and scopes. Do not claim that production status is verification.
+
+Google can also revoke refresh tokens for other reasons. No application can guarantee an irrevocable or permanently valid Google grant. A valid refresh token avoids repeatedly entering credentials; an expired/revoked grant still requires owner consent. See [Google OAuth token expiration](https://developers.google.com/identity/protocols/oauth2#expiration).
+
+Application login and Calendar authorization are separate. Browser login remains remembered for the existing 30-day owner-approved period. The short API/CSRF session renews automatically while a valid authenticated login remains. The browser retries only the specific pre-handler `API_SESSION_EXPIRED` rejection, once, with the original idempotency key. It never treats Google 401s, unknown writes or arbitrary network errors as authorization to replay an operation.

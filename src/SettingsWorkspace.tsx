@@ -146,6 +146,7 @@ const tabs = [
   ['telegram', 'Telegram'],
   ['research', 'Web research'],
   ['voice', 'Voice'],
+  ['sharing', 'Shared access'],
 ] as const;
 export function SettingsWorkspace({
   profile,
@@ -154,6 +155,7 @@ export function SettingsWorkspace({
   assistant,
   voice,
   signOut,
+  sharing,
 }: {
   profile: ReactNode;
   connections: (section: string) => ReactNode;
@@ -161,16 +163,19 @@ export function SettingsWorkspace({
   assistant: ReactNode;
   voice: ReactNode;
   signOut?: () => Promise<void>;
+  sharing?: ReactNode;
 }) {
   const [tab, setTab] = useState<string>('profile');
   return (
     <div className="settings-workspace">
       <nav className="settings-navigation" aria-label="Settings sections">
-        {tabs.map(([id, label]) => (
-          <button key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>
-            {label}
-          </button>
-        ))}
+        {tabs
+          .filter(([id]) => id !== 'sharing' || sharing)
+          .map(([id, label]) => (
+            <button key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>
+              {label}
+            </button>
+          ))}
         {signOut && (
           <button className="settings-signout" onClick={() => void signOut()}>
             Sign out
@@ -178,15 +183,17 @@ export function SettingsWorkspace({
         )}
       </nav>
       <div className="settings-content" key={tab}>
-        {tab === 'profile'
-          ? profile
-          : tab === 'account'
-            ? account
-            : tab === 'assistant'
-              ? assistant
-              : tab === 'voice'
-                ? voice
-                : connections(tab)}
+        {tab === 'sharing'
+          ? sharing
+          : tab === 'profile'
+            ? profile
+            : tab === 'account'
+              ? account
+              : tab === 'assistant'
+                ? assistant
+                : tab === 'voice'
+                  ? voice
+                  : connections(tab)}
       </div>
     </div>
   );

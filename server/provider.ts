@@ -1,6 +1,7 @@
 import { memoryInput, memoryOperation } from '../shared/memory.js';
 import { personalProgram } from '../shared/personal-resources.js';
 import { prefersProgramCapability, correctsCalendarTarget } from './program-intent.js';
+import { workspaceActor } from './workspace-access.js';
 import { randomUUID } from 'node:crypto';
 import { programAvailability, programDayMessage } from './program-availability.js';
 import { compareMessages } from '../shared/chat-messages.js';
@@ -372,12 +373,21 @@ export class AssistantService {
       this.store.recallConversation(message, conversationState.contextAfter),
     ]);
     const archived = [...new Map([...recalledArchive, ...recentArchive].map((row) => [row.id, row])).values()]
+      .filter((row) =>
+        workspaceActor.getStore()?.memberId
+          ? row.exchangeId?.startsWith('chat:web:member:' + workspaceActor.getStore()!.memberId + ':')
+          : !row.exchangeId?.includes('web:member:'),
+      )
       .filter((row) => row.exchangeId !== 'chat:' + key)
       .sort(compareMessages);
     const legacy =
       (await this.store.get<{ role: 'user' | 'assistant'; text: string }[]>('assistant.history')) ?? [];
     const history = conversationContext(
-      archived.length ? archived : conversationState.version === 1 ? legacy : [],
+      archived.length
+        ? archived
+        : conversationState.version === 1 && !workspaceActor.getStore()?.memberId
+          ? legacy
+          : [],
       message,
     );
     const programRequested = prefersProgramCapability(message);
@@ -434,6 +444,13 @@ export class AssistantService {
     const visibleReminders = boundedModelRecords(reminders ?? [], 8000);
     const contextualQuestion = continuation?.group === group ? continuation : undefined;
     const context = {
+      requester: workspaceActor.getStore()?.memberId
+        ? {
+            role: workspaceActor.getStore()!.role,
+            workspace:
+              'Shared owner workspace. The speaker is an invited member, not the owner. Do not turn guest identity statements into owner profile facts.',
+          }
+        : { role: 'owner' },
       now: new Date().toISOString(),
       preferences,
       ...(group === 'program-management'

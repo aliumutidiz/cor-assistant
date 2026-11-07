@@ -4,6 +4,8 @@ export type Session = {
   csrf: string;
   demo: boolean;
   owner: string;
+  workspaceOwner?: string;
+  actor?: { email: string; role: 'owner' | 'viewer' | 'editor'; memberId?: string };
   canLogout?: boolean;
   googleConnected: boolean;
   agyEnabled: boolean;
@@ -23,6 +25,7 @@ export type Session = {
   };
 };
 let csrf = '';
+let renewingSession: Promise<Session> | undefined;
 export async function sendChat<T>(
   message: string,
   key: string,
@@ -110,6 +113,7 @@ export async function api<T>(
   method = 'POST',
   key?: string,
   signal?: AbortSignal,
+  renewed = false,
 ): Promise<T> {
   const r = await fetchApi('/api' + path, {
     method: body === undefined ? 'GET' : method,
@@ -137,6 +141,16 @@ export async function api<T>(
   }
   if (!data || typeof data !== 'object')
     throw new ApiError('Could not validate the server response.', r.status);
+  // This code is emitted only before a route handler runs. Keep the original
+  // idempotency key; never replay arbitrary 401s, network failures or writes.
+  if (r.status === 401 && data.code === 'API_SESSION_EXPIRED' && path !== '/session' && !renewed) {
+    renewingSession ??= session().finally(() => {
+      renewingSession = undefined;
+    });
+    await renewingSession;
+    signal?.throwIfAborted();
+    return api<T>(path, body, method, key, signal, true);
+  }
   if (r.status === 401 && data.loginRequired === true) window.dispatchEvent(new Event('cor:login-required'));
   if (!r.ok)
     throw new ApiError(
