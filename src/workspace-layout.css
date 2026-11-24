@@ -1,0 +1,597 @@
+/* Workspace sizing: the assistant opens on demand so planning keeps its width. */
+.app-shell:not(.agent-view) {
+  grid-template-columns: 216px minmax(0, 1fr);
+}
+.main {
+  min-width: 0;
+}
+.content {
+  max-width: 1560px;
+  margin-inline: auto;
+  padding: 28px 32px 12px;
+}
+.app-shell:not(.agent-view) > .assistant-panel {
+  display: none;
+}
+.app-shell:not(.agent-view) > .assistant-panel.open {
+  display: flex;
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(440px, 100%);
+  z-index: 35;
+  box-shadow: -12px 0 40px #17201720;
+}
+.app-shell:not(.agent-view) .close-assistant {
+  display: flex;
+}
+.topbar {
+  padding-inline: 32px;
+}
+.page-heading {
+  margin-bottom: 20px;
+}
+.heading-row {
+  gap: 20px;
+}
+.heading-row h1 {
+  font-size: 28px;
+  letter-spacing: -0.7px;
+}
+.day-overview {
+  display: none;
+}
+.calendar-panel {
+  border-radius: 10px;
+}
+.calendar-toolbar {
+  gap: 12px 24px;
+  padding: 16px 20px;
+}
+.period-navigation {
+  min-width: 260px;
+  gap: 6px;
+}
+.period-navigation h2 {
+  font-size: 20px;
+  font-weight: 550;
+  margin-right: auto;
+  white-space: nowrap;
+}
+.calendar-toolbar .icon-button {
+  width: 36px;
+  height: 36px;
+}
+.view-tabs {
+  padding: 3px;
+}
+.view-tabs button {
+  padding: 8px 13px;
+  font-size: 14px;
+}
+.calendar-context-bar {
+  padding: 10px 20px;
+  gap: 10px 24px;
+}
+.planner-layers {
+  gap: 4px 16px;
+}
+.planner-layers label {
+  min-height: 32px;
+  font-size: 13px;
+}
+.calendar-footer {
+  flex-wrap: wrap;
+  font-size: 12px;
+  padding: 12px 20px;
+}
+.week-scroll {
+  height: clamp(340px, calc(100dvh - 310px), 820px);
+  max-height: none;
+}
+.week-grid {
+  min-width: 800px;
+}
+.single-day .week-grid {
+  min-width: 0;
+}
+.day-header {
+  height: 64px;
+  gap: 2px;
+}
+.day-header strong {
+  font-size: 20px;
+}
+.zone-label {
+  padding-top: 24px;
+  font-size: 11px;
+}
+.all-day-label {
+  font-size: 11px;
+  padding: 10px 2px;
+}
+.all-day-cell {
+  min-width: 0;
+  min-height: 0;
+  padding: 5px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.all-day-event {
+  min-height: 28px;
+  padding: 5px 7px;
+  font-size: 12px;
+  line-height: 18px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  margin-bottom: 4px;
+}
+.all-day-more summary {
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+  color: var(--muted);
+}
+.all-day-more > div {
+  padding-top: 4px;
+}
+.grid-event {
+  padding: 5px 7px;
+}
+.grid-event strong {
+  font-size: 13px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.grid-event span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.single-day .grid-event strong {
+  white-space: normal;
+}
+/* Month overview stays bounded regardless of how many records a day contains. */
+.month-workspace {
+  --month-row-height: clamp(120px, calc((100dvh - 330px) / 6), 152px);
+}
+.month-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.month-weekday {
+  height: 44px;
+  padding: 12px;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.month-day {
+  min-width: 0;
+  height: var(--month-row-height);
+  min-height: 0;
+  padding: 6px;
+  overflow: hidden;
+}
+.month-day.selected-day {
+  background: var(--tone-182);
+  box-shadow: inset 0 0 0 1px var(--tone-112);
+}
+.month-day > .month-date {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 550;
+}
+.month-event {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  height: 24px;
+  padding: 3px 5px;
+  margin: 3px 0;
+  font-size: 12px;
+  line-height: 18px;
+  background: var(--tone-180);
+}
+.month-event::before {
+  display: none;
+}
+.month-event time {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.month-event span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.month-more {
+  display: block;
+  min-height: 24px;
+  padding: 3px 5px;
+  font-size: 12px;
+  color: var(--tone-35);
+  text-align: left;
+}
+.month-more:hover {
+  text-decoration: underline;
+}
+.month-mobile-count {
+  display: none;
+}
+.month-day-agenda {
+  border-top: 1px solid var(--line);
+  padding: 20px;
+}
+.month-day-agenda > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.month-day-agenda h3 {
+  font-size: 17px;
+  font-weight: 550;
+  margin: 0;
+}
+.month-day-agenda header span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.month-agenda-event {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 12px;
+  margin-block: 4px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.month-agenda-event:hover {
+  background: var(--tone-182);
+}
+.month-agenda-event time {
+  font-size: 13px;
+  color: var(--muted);
+}
+.month-agenda-event strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.month-agenda-event small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+/* Shared list and form rhythm across the workspace. */
+.settings-content {
+  min-width: 0;
+  max-width: 900px;
+}
+.settings-navigation {
+  min-width: 0;
+}
+.memory-form,
+.profile-settings {
+  max-width: 900px;
+}
+.setting-row {
+  gap: 16px;
+}
+.operation-row {
+  padding: 16px 20px;
+}
+.operation-top {
+  gap: 8px 12px;
+}
+.memory-toolbar {
+  gap: 12px;
+}
+.memory-list .memory-card {
+  padding-block: 20px;
+}
+.memory-list .memory-title {
+  font-size: 17px;
+}
+.agenda-event {
+  display: grid;
+  grid-template-columns: 8px 170px minmax(0, 1fr) minmax(0, 160px) 20px;
+  gap: 16px;
+  padding: 18px 20px;
+}
+.agenda-event time {
+  min-width: 0;
+  font-size: 13px;
+}
+.agenda-event strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.agenda-event > span:last-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 1100px) and (min-width: 761px) {
+  .app-shell:not(.agent-view) {
+    grid-template-columns: 184px minmax(0, 1fr);
+  }
+  .content {
+    padding: 24px 20px;
+  }
+  .calendar-toolbar {
+    gap: 12px;
+  }
+  .calendar-date-picker {
+    width: 130px;
+  }
+  .month-day {
+    padding: 4px;
+  }
+  .month-event time {
+    display: none;
+  }
+  .agenda-event {
+    grid-template-columns: 8px 130px minmax(0, 1fr) 20px;
+  }
+  .agenda-event > span:last-of-type {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .app-shell:not(.agent-view) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .content {
+    padding: 18px 12px 24px;
+  }
+  .topbar {
+    padding-inline: 16px;
+  }
+  .page-heading {
+    margin-bottom: 14px;
+  }
+  .heading-row h1 {
+    font-size: 25px;
+  }
+  .calendar-toolbar {
+    padding: 12px;
+    gap: 10px;
+  }
+  .period-navigation {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+  .period-navigation h2 {
+    font-size: 18px;
+  }
+  .calendar-toolbar .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+  .view-tabs {
+    order: 2;
+  }
+  .view-tabs button {
+    padding: 8px 6px;
+  }
+  .calendar-date-picker {
+    order: 3;
+  }
+  .calendar-context-bar {
+    padding: 8px 12px;
+  }
+  .planner-layers {
+    gap: 0 8px;
+  }
+  .planner-layers label {
+    min-height: 36px;
+    font-size: 12px;
+  }
+  .calendar-search {
+    min-width: 0;
+    max-width: none;
+  }
+  .calendar-search input {
+    font-size: 16px;
+  }
+  .calendar-footer {
+    gap: 8px 16px;
+    padding: 12px;
+  }
+  .calendar-footer > span {
+    font-size: 11px;
+  }
+  .week-scroll {
+    height: min(560px, 65dvh);
+    min-height: 280px;
+    max-height: none;
+  }
+  .day-header {
+    height: 60px;
+  }
+  .all-day-event {
+    min-height: 32px;
+    font-size: 12px;
+  }
+  .all-day-cell {
+    max-height: 112px;
+  }
+  .month-weekday {
+    padding: 10px 0;
+    text-align: center;
+    font-size: 11px;
+  }
+  .month-day {
+    height: 72px;
+    min-height: 0;
+    padding: 4px 2px;
+  }
+  .month-day > .month-date {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    margin: 0 auto;
+  }
+  .month-previews {
+    display: none;
+  }
+  .month-mobile-count {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    min-height: 28px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .month-count-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--sage);
+  }
+  .month-day-agenda {
+    padding: 16px 12px;
+  }
+  .month-day-agenda h3 {
+    font-size: 15px;
+  }
+  .month-agenda-event {
+    grid-template-columns: 58px minmax(0, 1fr);
+    padding: 14px 8px;
+    gap: 12px;
+  }
+  .month-agenda-event strong {
+    font-size: 15px;
+  }
+  .agenda-event {
+    grid-template-columns: 8px minmax(0, 1fr) 20px;
+    gap: 8px 12px;
+    padding: 16px 12px;
+  }
+  .agenda-event time {
+    grid-column: 2;
+    font-size: 12px;
+  }
+  .agenda-event strong {
+    grid-column: 2;
+    font-size: 15px;
+  }
+  .agenda-event > svg {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+  .agenda-event > span:last-of-type {
+    display: none;
+  }
+  .settings-workspace {
+    display: block;
+  }
+  .settings-navigation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    gap: 6px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 20px;
+    padding: 0 0 16px;
+  }
+  .settings-navigation button {
+    font-size: 13px;
+    white-space: normal;
+    min-width: 0;
+    padding: 10px;
+  }
+  .settings-signout {
+    grid-column: 1 / -1;
+  }
+  .setting-row {
+    padding-block: 18px;
+  }
+  .operation-row {
+    padding: 14px;
+  }
+  .modal-content {
+    max-width: 600px;
+  }
+  .app-shell:not(.agent-view) > .assistant-panel.open {
+    inset: 0 0 auto;
+    width: 100%;
+    height: calc(100dvh - 68px - env(safe-area-inset-bottom));
+  }
+}
+/* Keep a month overview and its day inspector visible together on wide screens. */
+.calendar-panel {
+  container-type: inline-size;
+  container-name: calendar;
+}
+@container calendar (min-width: 1080px) {
+  .month-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 290px;
+    align-items: start;
+  }
+  .month-day-agenda {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+    height: calc(var(--month-row-height) * var(--month-rows) + 44px);
+    max-height: none;
+    overflow: auto;
+    padding: 16px;
+  }
+  .month-day-agenda > header {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .month-agenda-event {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 12px 8px;
+  }
+  .month-event time {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .month-day {
+    height: 68px;
+  }
+  .calendar-toolbar > .period-navigation {
+    order: 0;
+  }
+  .calendar-toolbar > .view-tabs {
+    order: 1;
+  }
+  .calendar-toolbar > .calendar-date-picker {
+    order: 2;
+  }
+  .calendar-toolbar > button {
+    order: 3;
+  }
+}
+.calendar-context-bar > span {
+  display: none;
+}
+.planner-layers input {
+  accent-color: var(--sage);
+}

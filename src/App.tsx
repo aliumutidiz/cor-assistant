@@ -1,3 +1,4 @@
+import { MonthCalendar } from './MonthCalendar';
 import { useChatSync } from './chat-sync';
 import { mergeMessages, reconcileMessages } from '../shared/chat-messages';
 import { useChatDraft } from './chat-draft';
@@ -379,10 +380,14 @@ export function App() {
   first.setUTCDate(anchor.getUTCDate() - ((anchor.getUTCDay() + 6) % 7));
   if (view === 'day') first.setTime(anchor.getTime());
   if (view === 'month') {
+    first.setTime(anchor.getTime());
     first.setUTCDate(1);
     first.setUTCDate(first.getUTCDate() - ((first.getUTCDay() + 6) % 7));
   }
-  const count = view === 'day' ? 1 : view === 'month' ? 42 : 7;
+  const monthStart = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), 1));
+  const monthDays = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + 1, 0)).getUTCDate();
+  const monthWeeks = Math.ceil((((monthStart.getUTCDay() + 6) % 7) + monthDays) / 7);
+  const count = view === 'day' ? 1 : view === 'month' ? monthWeeks * 7 : 7;
   const days = Array.from({ length: count }, (_, i) => {
     const d = new Date(first);
     d.setUTCDate(d.getUTCDate() + i);
@@ -537,6 +542,10 @@ export function App() {
   }, [s, refresh, refreshEvents]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setChatOpen(false);
+        setMobileMenuOpen(false);
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setChatOpen(true);
@@ -1059,7 +1068,12 @@ export function App() {
                         ['agenda', 'Agenda'],
                       ] as const
                     ).map(([v, t]) => (
-                      <button className={view === v ? 'selected' : ''} key={v} onClick={() => setView(v)}>
+                      <button
+                        aria-pressed={view === v}
+                        className={view === v ? 'selected' : ''}
+                        key={v}
+                        onClick={() => setView(v)}
+                      >
                         {t}
                       </button>
                     ))}
@@ -1078,17 +1092,7 @@ export function App() {
                       className="button subtle small"
                       onClick={() => {
                         setDate(new Date());
-                        const [hour, minute] = dateTimeInput(new Date(), zone)
-                          .slice(11)
-                          .split(':')
-                          .map(Number);
-                        calendarScroll.current?.scrollTo({
-                          top: Math.max(
-                            0,
-                            (hour + minute / 60) * 56 - (calendarScroll.current?.clientHeight ?? 0) / 2,
-                          ),
-                          behavior: 'smooth',
-                        });
+                        centerCurrentTime('smooth');
                       }}
                     >
                       Now
@@ -1194,45 +1198,17 @@ export function App() {
                     )}
                   </div>
                 ) : view === 'month' ? (
-                  <div className="month-grid">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                      <div key={day} className="month-weekday">
-                        {day}
-                      </div>
-                    ))}
-                    {days.map((d) => {
-                      const key = d.toISOString().slice(0, 10);
-                      const list = events.filter((e) => eventOnDay(e, key, zone));
-                      return (
-                        <div
-                          className={
-                            'month-day ' + (d.getUTCMonth() !== anchor.getUTCMonth() ? 'outside-month' : '')
-                          }
-                          key={key}
-                        >
-                          <button
-                            onClick={() => {
-                              setDate(d);
-                              setView('day');
-                            }}
-                            className={key === dateKey(new Date(), zone) ? 'today' : ''}
-                          >
-                            {d.getUTCDate()}
-                          </button>
-                          {list.map((e) => (
-                            <button
-                              className="month-event"
-                              data-source={'source' in e ? String(e.source) : 'calendar'}
-                              key={e.id}
-                              onClick={() => openCalendarItem(e)}
-                            >
-                              {e.summary}
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <MonthCalendar
+                    days={days}
+                    anchor={anchor}
+                    events={matchingEvents}
+                    zone={zone}
+                    onOpen={openCalendarItem}
+                    onDay={(day) => {
+                      setDate(day);
+                      setView('day');
+                    }}
+                  />
                 ) : (
                   <div className={'week-scroll ' + (view === 'day' ? 'single-day' : '')} ref={calendarScroll}>
                     <div
@@ -1267,25 +1243,48 @@ export function App() {
                           <strong>{d.getUTCDate()}</strong>
                         </button>
                       ))}
-                      <div className="all-day-label">All day</div>
-                      {days.map((d) => {
-                        const key = d.toISOString().slice(0, 10);
-                        return (
-                          <div className="all-day-cell" key={'all-' + key}>
-                            {events
-                              .filter((e) => e.start.date && eventOnDay(e, key, zone))
-                              .map((e) => (
-                                <button
-                                  className="all-day-event"
-                                  key={e.id}
-                                  onClick={() => openCalendarItem(e)}
-                                >
-                                  {e.summary}
-                                </button>
-                              ))}
-                          </div>
-                        );
-                      })}
+                      {matchingEvents.some((e) => e.start.date) && (
+                        <>
+                          <div className="all-day-label">All day</div>
+                          {days.map((day) => {
+                            const key = day.toISOString().slice(0, 10);
+                            const list = matchingEvents.filter(
+                              (e) => e.start.date && eventOnDay(e, key, zone),
+                            );
+                            return (
+                              <div className="all-day-cell" key={'all-' + key}>
+                                {list.slice(0, 2).map((event) => (
+                                  <button
+                                    className="all-day-event"
+                                    title={event.summary}
+                                    key={event.id}
+                                    onClick={() => openCalendarItem(event)}
+                                  >
+                                    {event.summary}
+                                  </button>
+                                ))}
+                                {list.length > 2 && (
+                                  <details className="all-day-more">
+                                    <summary>+{list.length - 2} more</summary>
+                                    <div>
+                                      {list.slice(2).map((event) => (
+                                        <button
+                                          className="all-day-event"
+                                          title={event.summary}
+                                          key={event.id}
+                                          onClick={() => openCalendarItem(event)}
+                                        >
+                                          {event.summary}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </details>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
                       <div className="hour-axis">
                         {Array.from({ length: 24 }, (_, i) => (
                           <span key={i}>{String(i).padStart(2, '0')}:00</span>
@@ -1293,7 +1292,9 @@ export function App() {
                       </div>
                       {days.map((d) => {
                         const key = d.toISOString().slice(0, 10);
-                        const list = events.filter((e) => e.start.dateTime && eventOnDay(e, key, zone));
+                        const list = matchingEvents.filter(
+                          (e) => e.start.dateTime && eventOnDay(e, key, zone),
+                        );
                         const lanes = eventLanes(list);
                         return (
                           <div className="day-column" key={key}>
