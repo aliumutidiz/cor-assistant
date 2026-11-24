@@ -85,6 +85,10 @@ test('workspace pages and editors stay usable across desktop and phone layouts',
           }),
         ).toBe(true);
         await page.screenshot({ path: `.runtime/screenshots/program-editor-${width}.png` });
+        await page.getByRole('dialog').evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+        });
+        await expect(page.getByRole('button', { name: 'Close record editor', exact: true })).toBeInViewport();
         await page.getByRole('button', { name: 'Close record editor', exact: true }).click();
       }
     }

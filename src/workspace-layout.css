@@ -840,3 +840,24 @@
     min-height: 44px;
   }
 }
+.modal-content > .modal-heading,
+.modal-content > .dialog-heading {
+  position: sticky;
+  top: -24px;
+  z-index: 2;
+  margin-top: -20px;
+  padding-top: 20px;
+  padding-bottom: 16px;
+  background: var(--tone-187);
+  border-bottom: 1px solid var(--line);
+}
+.modal-content > .modal-heading > .icon-button,
+.modal-content > .dialog-heading > .modal-close {
+  top: 20px;
+}
+@media (max-width: 760px) {
+  .modal-content > .modal-heading,
+  .modal-content > .dialog-heading {
+    top: -20px;
+  }
+}
