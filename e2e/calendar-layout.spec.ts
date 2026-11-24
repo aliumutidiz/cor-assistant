@@ -81,7 +81,7 @@ test('keeps navigation reachable on short screens and daily view within mobile w
   await sidebar.evaluate((e) => {
     e.scrollTop = e.scrollHeight;
   });
-  await expect(page.locator('.connection')).toBeInViewport();
+  await expect(page.locator('.sidebar-bottom')).toBeInViewport();
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   expect(await sidebar.evaluate((e) => Math.abs(Math.round(e.getBoundingClientRect().top)))).toBe(0);
   await page.setViewportSize({ width: 390, height: 700 });

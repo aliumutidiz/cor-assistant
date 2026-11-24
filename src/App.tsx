@@ -175,6 +175,11 @@ function Empty({ title, children }: { title: string; children?: ReactNode }) {
 export function App() {
   const [s, setS] = useState<Session>();
   const [page, setPage] = useState<Page>('calendar');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setChatOpen(false);
+  }, [page]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [calendarId, setCalendarId] = useState('primary');
   const [googleEvents, setEvents] = useState<CalendarEvent[]>([]);
@@ -226,7 +231,9 @@ export function App() {
     const timer = setInterval(() => setClockNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
-  const [view, setView] = useState<'week' | 'day' | 'month' | 'agenda'>('week');
+  const [view, setView] = useState<'week' | 'day' | 'month' | 'agenda'>(() =>
+    window.matchMedia('(max-width: 760px)').matches ? 'day' : 'week',
+  );
   const [error, setError] = useState('');
   const [loginRequired, setLoginRequired] = useState(false);
   useEffect(() => {
@@ -714,8 +721,7 @@ export function App() {
                 <ArrowRight size={18} />
               </a>
               <p className="sign-in-note">
-                Only the owner configured for this installation can sign in. Calendar access is requested
-                separately.
+                The owner and invited accounts can sign in. Calendar access is requested separately.
               </p>
               <details className="sign-in-help">
                 <summary>Setting up your own installation?</summary>
@@ -751,13 +757,22 @@ export function App() {
 
   return (
     <div className={'app-shell' + (page === 'assistant' ? ' agent-view' : '')}>
-      <aside className="sidebar">
+      <aside className={'sidebar' + (mobileMenuOpen ? ' mobile-menu-open' : '')}>
         <a className="brand" href="/" aria-label="C.O.R. home">
           <img src="/brand/orbit.svg" alt="" width={38} height={38} />
           <span>C.O.R.</span>
         </a>
+        <button
+          className="mobile-menu-toggle icon-button"
+          aria-label="Workspace menu"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="workspace-navigation"
+          onClick={() => setMobileMenuOpen((v) => !v)}
+        >
+          {mobileMenuOpen ? <X size={24} /> : <List size={24} />}
+        </button>
         <span className="section-label">WORKSPACE</span>
-        <nav>
+        <nav id="workspace-navigation" aria-label="Workspace">
           {(
             [
               { id: 'assistant', label: 'Assistant', icon: ChatCircle },
@@ -806,6 +821,36 @@ export function App() {
           <ThemeControl />
         </div>
       </aside>
+      <nav className="mobile-navigation" aria-label="Quick navigation">
+        {(
+          [
+            { id: 'today', label: 'Today', icon: CalendarBlank },
+            { id: 'calendar', label: 'Calendar', icon: CalendarBlank },
+            { id: 'assistant', label: 'Assistant', icon: ChatCircle },
+            { id: 'routines', label: 'Routines', icon: Lightning },
+          ] as const
+        ).map((item) => (
+          <button
+            key={item.id}
+            aria-current={page === item.id ? 'page' : undefined}
+            onClick={() => {
+              setPage(item.id);
+              setMobileMenuOpen(false);
+            }}
+          >
+            <item.icon size={23} />
+            <span>{item.label}</span>
+          </button>
+        ))}
+        <button
+          aria-label="More pages"
+          aria-expanded={mobileMenuOpen}
+          onClick={() => setMobileMenuOpen((v) => !v)}
+        >
+          <List size={23} />
+          <span>More</span>
+        </button>
+      </nav>
       <main className="main">
         <header className="topbar">
           <div className="breadcrumb">
