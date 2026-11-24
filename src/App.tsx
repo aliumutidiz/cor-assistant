@@ -1,3 +1,4 @@
+import { focusDialog } from './dialog-focus';
 import { MonthCalendar } from './MonthCalendar';
 import { useChatSync } from './chat-sync';
 import { mergeMessages, reconcileMessages } from '../shared/chat-messages';
@@ -148,7 +149,7 @@ function Modal({
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
-        <Dialog.Content className="modal-content">
+        <Dialog.Content className="modal-content" onOpenAutoFocus={focusDialog}>
           <div className="modal-heading">
             <div>
               <Dialog.Title>{title}</Dialog.Title>
@@ -1758,33 +1759,35 @@ export function App() {
         aria-label="Assistant conversation"
         className={'assistant-panel ' + (chatOpen || page === 'assistant' ? 'open' : '')}
       >
-        <ChatTools
-          canManage={!s.actor?.memberId}
-          key={s.owner}
-          busy={chatBusy || historyLoading || olderLoading}
-          onContext={acceptChatContext}
-          onChanged={reloadConversation}
-        />
-        <div className="assistant-heading">
-          <span className="assistant-logo">
-            <ChatCircle size={21} />
-          </span>
-          <div>
-            <strong>C.O.R. Assistant</strong>
-            <small>{s?.agyEnabled ? 'AGY enabled' : 'Awaiting verification'}</small>
+        <header className="assistant-topbar">
+          <div className="assistant-heading">
+            <span className="assistant-logo">
+              <ChatCircle size={21} />
+            </span>
+            <div>
+              <strong>C.O.R. Assistant</strong>
+              <small>{s?.agyEnabled ? 'AGY enabled' : 'Awaiting verification'}</small>
+            </div>
+            <button
+              className="icon-button close-assistant"
+              aria-label="Close assistant"
+              onClick={() => {
+                setChatOpen(false);
+                if (page === 'assistant') setPage('calendar');
+                stopAllVoice();
+              }}
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            className="icon-button close-assistant"
-            aria-label="Close assistant"
-            onClick={() => {
-              setChatOpen(false);
-              if (page === 'assistant') setPage('calendar');
-              stopAllVoice();
-            }}
-          >
-            <X size={18} />
-          </button>
-        </div>
+          <ChatTools
+            canManage={!s.actor?.memberId}
+            key={s.owner}
+            busy={chatBusy || historyLoading || olderLoading}
+            onContext={acceptChatContext}
+            onChanged={reloadConversation}
+          />
+        </header>
         {page !== 'assistant' && (
           <button
             className="text-button expand-assistant"
@@ -1984,10 +1987,6 @@ export function App() {
             </button>
           </div>
         </form>
-        <p className="assistant-disclaimer">
-          <ShieldCheck size={13} />
-          Sensitive changes require your approval.
-        </p>
       </aside>
       {eventEditor !== undefined && (
         <EventEditor
@@ -2242,7 +2241,6 @@ function EventEditor({
         <label>
           Event title
           <input
-            autoFocus
             required
             value={title}
             maxLength={500}
@@ -2542,7 +2540,7 @@ function RoutineEditor({
       <form className="editor-form" onSubmit={(e) => void submit(e)}>
         <label>
           Routine name
-          <input required autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={160} />
+          <input required value={name} onChange={(e) => setName(e.target.value)} maxLength={160} />
         </label>
         <label>
           Action

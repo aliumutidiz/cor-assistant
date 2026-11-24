@@ -14,7 +14,7 @@ test('manages a trusted invitation and explains Google connection lifetime', asy
   await page.screenshot({ path: '.runtime/screenshots/shared-access-mobile.png', fullPage: true });
   await invite.getByRole('button', { name: 'Revoke access' }).click();
   await expect(invite).not.toBeVisible();
-  await page.getByRole('button', { name: 'Calendar & security', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Settings section', exact: true }).selectOption('account');
   await page.getByText('Disconnecting every week?', { exact: true }).click();
   await expect(page.getByText('Google may still revoke authorization.', { exact: false })).toBeVisible();
 });

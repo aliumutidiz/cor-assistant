@@ -1,3 +1,4 @@
+import { focusDialog } from './dialog-focus';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bell, Plus, Pause, Play, PencilSimple, Trash, X, Clock } from '@phosphor-icons/react';
@@ -179,7 +180,7 @@ export function ReminderPanel({
       ) : (
         <div className="empty">
           <Bell size={32} weight="thin" />
-          <strong>{filter === 'active' ? 'Keep the details close.' : 'No history yet.'}</strong>
+          <strong>{filter === 'active' ? 'No pending reminders.' : 'No history yet.'}</strong>
           <p>
             {filter === 'active'
               ? 'Choose a time or say “remind me in five hours” in chat.'
@@ -246,7 +247,7 @@ function ReminderEditor({
     <Dialog.Root open onOpenChange={(open) => !open && !busy && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
-        <Dialog.Content className="modal-content">
+        <Dialog.Content className="modal-content" onOpenAutoFocus={focusDialog}>
           <div className="modal-heading">
             <div>
               <Dialog.Title>{reminder ? 'Edit reminder' : 'New reminder'}</Dialog.Title>
@@ -260,7 +261,6 @@ function ReminderEditor({
             <label>
               Reminder title
               <input
-                autoFocus
                 required
                 maxLength={300}
                 value={title}

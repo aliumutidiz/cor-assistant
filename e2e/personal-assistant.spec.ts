@@ -74,6 +74,7 @@ test('manages separate personal records and provides visible microphone failure 
   await dialog
     .getByLabel('Original content', { exact: true })
     .fill('Komşular için ortak ekipman kiralama. Önce küçük bir pilot.');
+  await dialog.getByText('Additional details', { exact: true }).click();
   await dialog.getByLabel('Tags (comma-separated)').fill('proje, mahalle');
   await dialog.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(dialog).toHaveCount(0);
@@ -93,6 +94,7 @@ test('manages separate personal records and provides visible microphone failure 
   await page.getByRole('button', { name: 'Close record', exact: true }).click();
   await page.getByLabel('Search records').fill('olmayan');
   await expect(page.getByText('No records match this search.')).toBeVisible();
+  await page.getByRole('button', { name: 'Ask C.O.R.', exact: false }).click();
   await page.getByRole('button', { name: 'Record voice message', exact: true }).click();
   await expect(page.getByText(/Microphone unavailable|This browser cannot record audio/)).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });

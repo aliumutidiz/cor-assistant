@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from './api';
 import type { ConversationState, ConversationChange } from '../shared/chat-controls';
 import { MarkdownMessage } from './MarkdownMessage';
@@ -14,6 +14,7 @@ export function ChatTools({
   onChanged: () => Promise<void>;
   canManage?: boolean;
 }) {
+  const toolsRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<ConversationState>();
   const [open, setOpen] = useState(false),
     [pending, setPending] = useState<ConversationChange['mode']>(),
@@ -36,6 +37,21 @@ export function ChatTools({
       alive = false;
     };
   }, [onContext]);
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !toolsRef.current?.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
   async function change(mode: ConversationChange['mode'], messageId?: string) {
     if (!state) return;
     setWorking(true);
@@ -116,12 +132,12 @@ export function ChatTools({
     }
   }
   return (
-    <div className="chat-tools">
+    <div className="chat-tools" ref={toolsRef}>
       <button className="secondary" aria-expanded={open} onClick={() => setOpen(!open)}>
         Conversation
       </button>
       {open && (
-        <div className="chat-tools-panel">
+        <div className="chat-tools-panel" role="region" aria-label="Conversation tools">
           <div className="chat-tools-actions">
             <button disabled={!canManage || busy || working || !state} onClick={() => setPending('new')}>
               New chat

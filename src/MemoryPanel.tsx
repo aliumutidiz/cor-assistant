@@ -1,3 +1,4 @@
+import { focusDialog } from './dialog-focus';
 import { useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Plus, X, Archive, PencilSimple, ArrowsClockwise } from '@phosphor-icons/react';
@@ -387,12 +388,14 @@ export function MemoryPanel({
       >
         <Dialog.Portal>
           <Dialog.Overlay className="modal-overlay" />
-          <Dialog.Content className="modal-content memory-detail">
-            <Dialog.Title>{selected?.title}</Dialog.Title>
-            <Dialog.Description>Original record, source and the latest 50 versions.</Dialog.Description>
-            <Dialog.Close className="icon-button modal-close" aria-label="Close record">
-              <X size={18} />
-            </Dialog.Close>
+          <Dialog.Content className="modal-content memory-detail" onOpenAutoFocus={focusDialog}>
+            <div className="dialog-heading">
+              <Dialog.Title>{selected?.title}</Dialog.Title>
+              <Dialog.Description>Original record, source and the latest 50 versions.</Dialog.Description>
+              <Dialog.Close className="icon-button modal-close" aria-label="Close record">
+                <X size={18} />
+              </Dialog.Close>
+            </div>
             {selected && (
               <>
                 <p className="memory-body">{selected.body}</p>
@@ -484,16 +487,24 @@ function MemoryEditor({
     >
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
-        <Dialog.Content className="modal-content">
-          <Dialog.Title>
-            {record ? 'Edit record' : initialKind === 'program' ? 'Create program' : 'Add personal record'}
-          </Dialog.Title>
-          <Dialog.Description>
-            Leave unknown dates or amounts empty. The recording time is automatic.
-          </Dialog.Description>
-          <Dialog.Close className="icon-button modal-close" disabled={busy} aria-label="Close record editor">
-            <X size={18} />
-          </Dialog.Close>
+        <Dialog.Content className="modal-content" onOpenAutoFocus={focusDialog}>
+          <div className="dialog-heading">
+            <Dialog.Title>
+              {record ? 'Edit record' : initialKind === 'program' ? 'Create program' : 'Add personal record'}
+            </Dialog.Title>
+            <Dialog.Description>
+              {initialKind === 'program'
+                ? 'Set your recurring activities and when this program applies.'
+                : 'Leave unknown dates or amounts empty. The recording time is automatic.'}
+            </Dialog.Description>
+            <Dialog.Close
+              className="icon-button modal-close"
+              disabled={busy}
+              aria-label="Close record editor"
+            >
+              <X size={18} />
+            </Dialog.Close>
+          </div>
           <form
             className="memory-form"
             onSubmit={async (e) => {
@@ -563,6 +574,7 @@ function MemoryEditor({
               Title
               <input required maxLength={300} value={title} onChange={(e) => setTitle(e.target.value)} />
             </label>
+            <ResourceFields value={resources} onChange={setResources} />
             <label>
               {kind === 'program' ? 'Notes (optional)' : 'Original content'}
               <textarea
@@ -573,35 +585,38 @@ function MemoryEditor({
                 onChange={(e) => setBody(e.target.value)}
               />
             </label>
-            <label>
-              Short summary
-              <textarea
-                rows={2}
-                maxLength={1000}
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-              />
-            </label>
-            <ResourceFields value={resources} onChange={setResources} />
-            <label>
-              Tags (comma-separated)
-              <input value={tags} onChange={(e) => setTags(e.target.value)} />
-            </label>
-            <label>
-              Exact occurrence time (optional · {effectiveZone})
-              <input
-                type="datetime-local"
-                value={when}
-                onChange={(e) => {
-                  setWhen(e.target.value);
-                  if (e.target.value) setDay(e.target.value.split('T')[0]);
-                }}
-              />
-            </label>
-            <label>
-              If only the date is known
-              <input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
-            </label>
+            <details className="form-options">
+              <summary>Additional details</summary>
+              <label>
+                Short summary
+                <textarea
+                  rows={2}
+                  maxLength={1000}
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                />
+              </label>
+
+              <label>
+                Tags (comma-separated)
+                <input value={tags} onChange={(e) => setTags(e.target.value)} />
+              </label>
+              <label>
+                Exact occurrence time (optional · {effectiveZone})
+                <input
+                  type="datetime-local"
+                  value={when}
+                  onChange={(e) => {
+                    setWhen(e.target.value);
+                    if (e.target.value) setDay(e.target.value.split('T')[0]);
+                  }}
+                />
+              </label>
+              <label>
+                If only the date is known
+                <input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+              </label>
+            </details>
             {kind === 'purchase' && (
               <div className="form-grid">
                 <label>

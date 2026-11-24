@@ -168,6 +168,18 @@ export function SettingsWorkspace({
   const [tab, setTab] = useState<string>('profile');
   return (
     <div className="settings-workspace">
+      <label className="settings-mobile-picker">
+        Settings section
+        <select value={tab} onChange={(e) => setTab(e.target.value)}>
+          {tabs
+            .filter(([id]) => id !== 'sharing' || sharing)
+            .map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+        </select>
+      </label>
       <nav className="settings-navigation" aria-label="Settings sections">
         {tabs
           .filter(([id]) => id !== 'sharing' || sharing)
@@ -195,6 +207,11 @@ export function SettingsWorkspace({
                   ? voice
                   : connections(tab)}
       </div>
+      {signOut && (
+        <button className="button subtle settings-mobile-signout" onClick={() => void signOut()}>
+          Sign out
+        </button>
+      )}
     </div>
   );
 }
