@@ -60,6 +60,8 @@ test('workspace pages and editors stay usable across desktop and phone layouts',
         .getByRole('button', { name, exact: true })
         .click();
       await page.evaluate(() => scrollTo(0, 0));
+      if (width < 761 && name !== 'Assistant')
+        expect((await page.locator('.main').boundingBox())!.y).toBeLessThanOrEqual(61);
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         `${name} at ${width}`,

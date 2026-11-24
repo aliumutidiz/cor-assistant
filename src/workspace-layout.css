@@ -861,3 +861,10 @@
     top: -20px;
   }
 }
+@media (max-width: 760px) {
+  .app-shell,
+  .app-shell.agent-view {
+    grid-template-rows: 60px minmax(0, 1fr);
+    align-content: start;
+  }
+}
