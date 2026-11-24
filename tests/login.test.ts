@@ -228,6 +228,52 @@ describe('owner-only Google application login', () => {
     const cookie = second.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
     expect((await app.inject({ url: callback, headers: { cookie } })).statusCode).toBe(400);
   });
+  it('reports a temporary outage without exposing network details or creating a login', async () => {
+    const h = await setup();
+    h.fetchMock.mockRejectedValueOnce(new TypeError('fetch failed: private network details'));
+    const response = await app.inject({ url: h.callback, headers: { cookie: h.cookie } });
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error).toContain('temporarily unreachable');
+    expect(response.body).not.toContain('private network');
+    expect(response.cookies.some((c) => c.name === '__Host-cor_owner')).toBe(false);
+    expect((await app.inject('/api/session')).statusCode).toBe(401);
+  });
+  it('offers a fresh sign-in link to browsers after a provider outage', async () => {
+    const h = await setup();
+    h.fetchMock.mockRejectedValueOnce(new TypeError('private network details'));
+    const response = await app.inject({
+      url: h.callback,
+      headers: { cookie: h.cookie, accept: 'text/html' },
+    });
+    expect(response.statusCode).toBe(503);
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.body).toContain('href="/api/auth/login"');
+    expect(response.body).not.toContain('private network');
+    expect(response.body).not.toContain('authorization-code');
+  });
+  it('distinguishes a signing-key network outage from an unauthorized account', async () => {
+    const h = await setup();
+    h.fetchMock.mockImplementation(async (input) => {
+      if (String(input).includes('/certs')) throw new TypeError('fetch failed');
+      return Response.json({
+        id_token: await new SignJWT({
+          email: 'owner@gmail.com',
+          email_verified: true,
+          nonce: h.url.searchParams.get('nonce'),
+        })
+          .setProtectedHeader({ alg: 'RS256', kid: 'login-key' })
+          .setSubject('owner-subject')
+          .setIssuer('https://accounts.google.com')
+          .setAudience(environment.GOOGLE_CLIENT_ID)
+          .setIssuedAt()
+          .setExpirationTime('1h')
+          .sign(pair.privateKey),
+      });
+    });
+    const response = await app.inject({ url: h.callback, headers: { cookie: h.cookie } });
+    expect(response.statusCode).toBe(503);
+    expect(response.cookies.some((c) => c.name === '__Host-cor_owner')).toBe(false);
+  });
   it('fails closed on token exchange failure', async () => {
     const { callback, cookie } = await setup({}, { tokenError: true });
     expect((await app.inject({ url: callback, headers: { cookie } })).statusCode).toBe(401);

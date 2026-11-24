@@ -84,14 +84,25 @@ export async function createApp(
         error: 'Girdi geçersiz.',
         details: error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
       });
-    if (error instanceof AppError)
+    if (
+      error instanceof AppError &&
+      error.status === 503 &&
+      isLoginCallback(req.url) &&
+      req.headers.accept?.includes('text/html')
+    )
       return reply
-        .code(error.status)
-        .send({
-          error: error.message,
-          uncertain: error.uncertain,
-          ...(error.code === 'API_SESSION_EXPIRED' ? { code: error.code } : {}),
-        });
+        .code(503)
+        .header('Cache-Control', 'no-store')
+        .type('text/html; charset=utf-8')
+        .send(
+          `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign-in unavailable · C.O.R.</title><style>body{font:16px/1.6 system-ui;margin:0;padding:32px;background:#f6f7f3;color:#202128}main{max-width:460px;margin:15vh auto}h1{font-size:26px}a{display:inline-block;padding:12px 20px;background:#24204c;color:white;border-radius:8px;text-decoration:none}@media(prefers-color-scheme:dark){body{background:#161a22;color:#edf0f6}}</style></head><body><main><h1>Google sign-in is temporarily unavailable</h1><p>This server could not reach Google. Please try again shortly.</p><a href="/api/auth/login">Try signing in again</a><p><a href="/">Return to C.O.R.</a></p></main></body></html>`,
+        );
+    if (error instanceof AppError)
+      return reply.code(error.status).send({
+        error: error.message,
+        uncertain: error.uncertain,
+        ...(error.code === 'API_SESSION_EXPIRED' ? { code: error.code } : {}),
+      });
     const code = (error as { statusCode?: number }).statusCode;
     const status = typeof code === 'number' && code < 500 ? code : 500;
     if (status === 500) {

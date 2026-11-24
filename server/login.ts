@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Config } from './config.js';
 import type { Store } from './repositories.js';
@@ -9,6 +9,16 @@ import { resolveActor } from './workspace-access.js';
 const opaque = () => randomBytes(32).toString('base64url');
 const digest = (value: string) => createHash('sha256').update(value).digest('base64url');
 const duration = 30 * 86400000;
+async function googleLoginFetch(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
+  try {
+    return await fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(20000) });
+  } catch {
+    throw new AppError(
+      503,
+      'Google sign-in is temporarily unreachable. Please try signing in again shortly.',
+    );
+  }
+}
 export type OwnerLogin = {
   subject: string;
   email: string;
@@ -29,7 +39,9 @@ export function isLoginCallback(url: string) {
 }
 
 export class OwnerAuth {
-  private keys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+  private keys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'), {
+    [customFetch]: googleLoginFetch,
+  });
   constructor(
     private config: Config,
     private store: Store,
@@ -115,7 +127,7 @@ export class OwnerAuth {
       query.code.length > 4096
     )
       throw new AppError(400, 'Giriş isteği geçersiz veya süresi dolmuş. Yeniden deneyin.');
-    const response = await fetch('https://oauth2.googleapis.com/token', {
+    const response = await googleLoginFetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       signal: AbortSignal.timeout(20000),
       body: new URLSearchParams({
@@ -154,7 +166,10 @@ export class OwnerAuth {
         actor.memberId ? 'workspace.subject:' + actor.memberId : 'auth.owner-subject',
       );
       if (subject && subject !== payload.sub) throw Error();
-    } catch {
+    } catch (error) {
+      if (error instanceof AppError && error.status === 503) throw error;
+      if ((error as { code?: string }).code === 'ERR_JWKS_TIMEOUT')
+        throw new AppError(503, 'Google sign-in is temporarily unreachable. Please try again shortly.');
       throw new AppError(403, 'Bu hesap C.O.R. için yetkili değil.');
     }
     const actor = await resolveActor(this.store, this.config.OWNER_EMAIL, String(payload.email));
