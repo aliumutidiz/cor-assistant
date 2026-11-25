@@ -1,4 +1,5 @@
 import json
+import hashlib
 from pathlib import Path
 import runpy
 import unittest
@@ -12,6 +13,14 @@ broker = runpy.run_path(str(Path(__file__).with_name('agy-broker.py')))
 
 
 class BrokerOutputTests(unittest.TestCase):
+    def test_direct_json_response_avoids_a_second_structured_output_wrapper(self):
+        output = {'message': 'Program proposal', 'action': {'kind': 'memory.create'}, 'read': None}
+        result = {'event': 'result', 'result': {'status': 'SUCCESS', 'response': json.dumps(output)}}
+        self.assertEqual(broker['parse_cli_output'](json.dumps(result).encode(), b'', 0)['output'], output)
+        result['result']['response'] = 'Example: ' + json.dumps(output)
+        with self.assertRaises(broker['ModelOutputError']):
+            broker['parse_cli_output'](json.dumps(result).encode(), b'', 0)
+
     def result(self, output):
         return json.dumps({'event': 'result', 'result': {'status': 'SUCCESS', 'structured_output': output}}).encode()
 
@@ -48,6 +57,17 @@ class BrokerOutputTests(unittest.TestCase):
 
 
 class BrokerInputTests(unittest.TestCase):
+    def test_scoped_sessions_are_stable_and_do_not_resume_the_old_schema_transport(self):
+        scope = 'a' * 64
+        schema = {'type': 'object', 'properties': {}}
+        key = broker['conversation_key'](scope, schema)
+        self.assertEqual(key, broker['conversation_key'](scope, dict(reversed(list(schema.items())))))
+        legacy = hashlib.sha256((scope + json.dumps(schema, sort_keys=True)).encode()).hexdigest()
+        self.assertNotEqual(key, legacy)
+        self.assertNotEqual(key, broker['conversation_key']('b' * 64, schema))
+        with patch.dict(broker['conversation_key'].__globals__, {'MODEL': 'gemini-other-low'}):
+            self.assertNotEqual(key, broker['conversation_key'](scope, schema))
+
     def test_only_prompt_and_object_schema_are_accepted(self):
         payload = {'prompt': 'Merhaba', 'schema': {'type': 'object'}}
         self.assertEqual(parse_request(json.dumps(payload)), payload)

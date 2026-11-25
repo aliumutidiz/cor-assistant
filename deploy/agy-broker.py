@@ -85,7 +85,10 @@ def parse_cli_output(stdout, stderr, code):
         if re.search(r'unavailable|connection.reset|ECONNRESET|fetch failed|network error|503|502', diagnostic, re.I):
             raise ModelUnavailableError()
         raise ModelOutputError()
-    output = result.get('structured_output')
+    # The CLI's additional schema-formatting pass can wrap an already valid
+    # envelope inside message with action=null. Use the complete direct JSON
+    # response instead; application schemas remain the execution boundary.
+    output = result.get('structured_output') if 'structured_output' in result else result.get('response')
     if isinstance(output, str):
         try:
             output = json.loads(output)
@@ -170,6 +173,15 @@ async def generate(data):
         lock.close()
 
 
+def conversation_key(scope, schema):
+    # Resume only sessions created with this transport contract. An older CLI
+    # conversation can retain its schema formatting behavior after flag changes.
+    # This is one migration per capability/model, not a new chat on every turn;
+    # durable application history and memory are preserved independently.
+    identity = {'protocol': 'cor-direct-json-v1', 'model': MODEL, 'scope': scope, 'schema': schema}
+    return hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
 async def execute(data):
     # Never use global --continue: it can resume an unrelated owner console.
     # Scope and schema are application-selected, not model-provided CLI arguments.
@@ -178,7 +190,7 @@ async def execute(data):
     scope = data.get('conversation_key')
     session_key = None
     if scope:
-        session_key = hashlib.sha256((scope + json.dumps(data['schema'], sort_keys=True)).encode()).hexdigest()
+        session_key = conversation_key(scope, data['schema'])
         if state_path.exists():
             if state_path.is_symlink() or state_path.stat().st_size > 65536:
                 raise ValueError('Invalid conversation state')
@@ -192,7 +204,6 @@ async def execute(data):
         '/usr/bin/dbus-run-session', '--', '/opt/cor-agent/bin/agy',
         *resume,
         '--input-format', 'stream-json', '--output-format', 'stream-json',
-        '--json-schema', json.dumps(data['schema'], separators=(',', ':')),
         '--model', MODEL, '--effort', 'low', '--sandbox',
         '--disable-slash-commands', '--print-timeout', '90s',
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
@@ -201,7 +212,8 @@ async def execute(data):
     )
     readers = []
     try:
-        process.stdin.write((json.dumps({'event': 'user', 'message': {'content': data['prompt']}}) + '\n').encode())
+        prompt = data['prompt'] + '\nRESPONSE_SCHEMA: ' + json.dumps(data['schema'], separators=(',', ':')) + '\nReturn exactly one JSON object matching RESPONSE_SCHEMA. Return the envelope itself, never JSON encoded inside message. No code fences or surrounding prose.'
+        process.stdin.write((json.dumps({'event': 'user', 'message': {'content': prompt}}) + '\n').encode())
         await process.stdin.drain()
         process.stdin.close()
         readers = [asyncio.create_task(bounded_read(process.stdout)), asyncio.create_task(bounded_read(process.stderr))]

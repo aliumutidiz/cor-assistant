@@ -2,6 +2,38 @@
 
 Status: **CONSOLE ADAPTER VERIFIED; OPERATOR-ACCEPTED UNSUPPORTED INTEGRATION**
 
+## Current transport — 2026-11-25
+
+The native broker now defaults to `gemini-4-hydrogen-low`, verified in the owner's
+available model list. An operator can set `COR_AGY_MODEL` in the root-managed broker
+service environment; application callers cannot override it. Low effort and the
+existing paid-credit rejection remain in effect.
+
+A real two-class weekly timetable request exposed schema-mode responses that
+encoded the complete proposal inside `message` while leaving `action` null. That
+hidden write was correctly rejected. The broker now requests a complete direct
+JSON response and the application validates the complete capability and operation
+contracts before any change. It never extracts a write from prose or promotes a
+nested message into an action. Unknown fields, stale versions, approvals,
+idempotency and unauthorized built-in tools remain guarded.
+
+CLI conversation keys include the transport revision, model, application scope and
+schema. This isolates the new transport from old conversations retaining the
+schema-mode behavior, while reusing the same new session for subsequent matching
+turns. Application conversation history and durable personal memory are unchanged.
+
+The owner's Tuesday/Wednesday request for Advanced Calculus 10:30–12:20 and Linear
+Algebra 13:30–15:20 passed a disposable `AssistantService` test with both classes,
+distinct IDs and the correct weekdays/times in one model generation. No live
+calendar or memory record was created. This is a targeted regression check, not a
+guarantee that arbitrary model outputs cannot fail. Format repair is bounded to
+one attempt and receives field/code diagnostics without rejected field values.
+
+The root-managed native broker must be reviewed, backed up and installed separately
+from web releases. Do not restart networking or WARP to deploy this transport.
+
+## Historical activation
+
 Live activation: the isolated broker and application socket adapter are enabled on
 Linux. A full `AssistantService` routing + skill response for the approved real
 "deneme" message returned a Turkish greeting using `calendar-read`; calendar reads
