@@ -18,6 +18,7 @@ export function AgyConsole({ close }: { close: () => void }) {
   const sessionRef = useRef<string | undefined>(undefined);
   const [error, setError] = useState('');
   const [active, setActive] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [loginUrl, setLoginUrl] = useState<string>();
   useEffect(() => {
     let alive = true,
@@ -122,12 +123,23 @@ export function AgyConsole({ close }: { close: () => void }) {
       clearTimeout(inputTimer);
       resize?.disconnect();
       terminal?.dispose();
-      if (session) void api('/agy/console/stop', { session }).catch(() => {});
+      if (session && sessionRef.current === session)
+        void api('/agy/console/stop', { session }).catch(() => {});
     };
   }, []);
   const finish = async () => {
-    if (sessionRef.current) await api('/agy/console/stop', { session: sessionRef.current }).catch(() => {});
-    close();
+    if (closing) return;
+    setClosing(true);
+    setError('');
+    try {
+      if (sessionRef.current) await api('/agy/console/stop', { session: sessionRef.current });
+      sessionRef.current = undefined;
+      close();
+    } catch {
+      setError('The console could not confirm closing. Use Close again before returning to chat.');
+    } finally {
+      setClosing(false);
+    }
   };
   return (
     <Dialog.Root open onOpenChange={(open) => !open && void finish()}>
@@ -146,7 +158,7 @@ export function AgyConsole({ close }: { close: () => void }) {
                 open.
               </Dialog.Description>
             </div>
-            <Dialog.Close className="icon-button" aria-label="Close AGY console">
+            <Dialog.Close className="icon-button" disabled={closing} aria-label="Close AGY console">
               <X size={20} />
             </Dialog.Close>
           </div>
@@ -169,8 +181,8 @@ export function AgyConsole({ close }: { close: () => void }) {
             <span role="status">
               {active ? 'Console open' : error ? 'Connection stopped' : 'Connecting or session expired'}
             </span>
-            <button className="button subtle" onClick={() => void finish()}>
-              Close and return to chat
+            <button className="button subtle" disabled={closing} onClick={() => void finish()}>
+              {closing ? 'Closing console…' : 'Close and return to chat'}
             </button>
           </div>
         </Dialog.Content>
@@ -180,12 +192,13 @@ export function AgyConsole({ close }: { close: () => void }) {
 }
 
 const labels: Record<string, string> = {
-  ready: 'Connected',
+  ready: 'Session ready',
   auth_required: 'Sign-in required',
   quota: 'Waiting for quota',
   error: 'Check connection',
   unknown: 'Not checked yet',
   unreachable: 'Console service unavailable',
+  provider_unreachable: 'Google connection timed out',
   disabled: 'Off',
 };
 export function AgyPanel({ status, refresh }: { status?: AgyStatus; refresh: () => Promise<void> }) {

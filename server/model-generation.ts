@@ -10,7 +10,7 @@ export async function generateValidated<T>(
   prompt: string,
   schema: Record<string, unknown>,
   validate: (output: unknown) => T,
-  recovery: { used: boolean },
+  recovery: { used: boolean; busyUntil?: number },
   signal?: AbortSignal,
   conversationKey?: string,
 ) {
@@ -37,6 +37,19 @@ export async function generateValidated<T>(
         throw error;
       }
     } catch (error) {
+      // A broker busy response proves this request never started model work.
+      // Wait for the owner's console/other generation to release the lock;
+      // do not consume output-repair quota or submit an application operation.
+      if (error instanceof AppError && error.code === 'AGY_BUSY' && !signal?.aborted) {
+        recovery.busyUntil ??= Date.now() + 120000;
+        if (Date.now() >= recovery.busyUntil) throw error;
+        try {
+          await pause(Math.min(1500, recovery.busyUntil - Date.now()), undefined, { signal });
+        } catch {
+          throw new AppError(499, 'İstek iptal edildi.');
+        }
+        continue;
+      }
       if (
         recovery.used ||
         signal?.aborted ||

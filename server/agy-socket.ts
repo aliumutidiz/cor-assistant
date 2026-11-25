@@ -105,6 +105,8 @@ export class AgySocketProvider implements ModelProvider {
                     : value.error === 'busy'
                       ? 'Asistan başka bir isteği işliyor.'
                       : 'AGY isteği tamamlanamadı. Oturum veya kota durumunu kontrol edin.',
+                  false,
+                  value.error === 'busy' || value.error === 'ModelBusyError' ? 'AGY_BUSY' : undefined,
                 ),
               );
             } else if (!value.output || typeof value.output !== 'object' || Array.isArray(value.output)) {

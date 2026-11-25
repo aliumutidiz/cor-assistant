@@ -3,6 +3,7 @@ import { test, expect } from '@playwright/test';
 test('restores archived chat and provides an owner-controlled AGY-only terminal', async ({ page }) => {
   let opened = false,
     stopped = false;
+  let stopAttempts = 0;
   const inputs: unknown[] = [];
   const session = 'a'.repeat(43);
   const text = Buffer.from('\r\nAGY console ready\r\n');
@@ -44,12 +45,15 @@ test('restores archived chat and provides an owner-controlled AGY-only terminal'
       value = { active: true };
     }
     if (path === '/api/agy/console/stop') {
+      if (++stopAttempts === 1)
+        return route.fulfill({ status: 503, json: { error: 'Console service unavailable' } });
       stopped = true;
       value = { active: false };
     }
     await route.fulfill({ json: value });
   });
   await page.goto('/');
+  await page.getByRole('button', { name: 'Assistant', exact: true }).click();
   await expect(page.getByText('Önceki konuşma saklandı', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText('Önceki konuşma saklandı', { exact: true })).toBeVisible();
@@ -68,6 +72,10 @@ test('restores archived chat and provides an owner-controlled AGY-only terminal'
   const bounds = await page.getByRole('dialog').boundingBox();
   expect(bounds!.x).toBeGreaterThanOrEqual(0);
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(391);
+  await page.getByRole('button', { name: 'Close and return to chat' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByText(/could not confirm closing/)).toBeVisible();
+  expect(stopped).toBe(false);
   await page.getByRole('button', { name: 'Close and return to chat' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect.poll(() => stopped).toBe(true);

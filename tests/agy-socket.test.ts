@@ -63,6 +63,10 @@ describe('isolated AGY socket transport', () => {
     const provider = await setup((socket) => socket.end('{"error":"busy"}\n'));
     await expect(provider.generate('x', {})).rejects.toMatchObject({ status: 429 });
   });
+  it('identifies a console lock as safe-to-wait busy rather than an unavailable session', async () => {
+    const provider = await setup((socket) => socket.end('{"error":"ModelBusyError"}\n'));
+    await expect(provider.generate('x', {})).rejects.toMatchObject({ status: 429, code: 'AGY_BUSY' });
+  });
   it('does not send an oversized request', async () => {
     const provider = await setup(() => {
       throw Error('Should not receive a request');

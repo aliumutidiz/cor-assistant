@@ -43,6 +43,37 @@ describe('bounded pure model recovery', () => {
       expect(provider.generate).toHaveBeenCalledTimes(1);
     },
   );
+  it('waits for a definitely unstarted busy request without consuming repair recovery or changing context', async () => {
+    const recovery = { used: false };
+    const provider = {
+      generate: vi
+        .fn()
+        .mockRejectedValueOnce(new AppError(429, 'console open', false, 'AGY_BUSY'))
+        .mockResolvedValueOnce({ output: { message: 'ok' } }),
+    };
+    const key = 'a'.repeat(64);
+    const result = await generateValidated(
+      provider,
+      'same request',
+      {},
+      (v) => schema.parse(v),
+      recovery,
+      undefined,
+      key,
+    );
+    expect(result.output.message).toBe('ok');
+    expect(recovery.used).toBe(false);
+    expect(provider.generate).toHaveBeenCalledTimes(2);
+    expect(provider.generate.mock.calls[0]).toEqual(provider.generate.mock.calls[1]);
+  });
+  it('bounds the total console wait without treating quota or authentication as retryable', async () => {
+    const error = new AppError(429, 'console open', false, 'AGY_BUSY');
+    const provider = { generate: vi.fn().mockRejectedValue(error) };
+    await expect(
+      generateValidated(provider, 'x', {}, (v) => v, { used: false, busyUntil: Date.now() - 1 }),
+    ).rejects.toBe(error);
+    expect(provider.generate).toHaveBeenCalledTimes(1);
+  });
   it('cancels backoff without starting another generation', async () => {
     const signal = new AbortController();
     const provider = {

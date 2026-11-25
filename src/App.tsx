@@ -1932,6 +1932,11 @@ export function App() {
             </button>
           </div>
         )}
+        {agyStatus?.active && (
+          <div className="notice" role="status">
+            AGY console is open. Chat waits for the session; close the console when you finish signing in.
+          </div>
+        )}
         {agyStatus?.connection?.state === 'auth_required' && (
           <div className="error-banner" role="alert">
             AGY session closed.{' '}

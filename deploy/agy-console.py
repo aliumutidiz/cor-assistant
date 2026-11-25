@@ -138,9 +138,14 @@ class Console:
                 start_new_session=True,
                 env={k: os.environ[k] for k in ('HOME', 'USER', 'LOGNAME', 'PATH', 'XDG_RUNTIME_DIR') if k in os.environ})
             try:
-                stdout, stderr = await asyncio.wait_for(process.communicate(), 20)
-                diagnostic = stderr.decode(errors='replace').lower()
-                state = 'ready' if process.returncode == 0 and b'gemini-' in stdout else ('auth_required' if any(t in diagnostic for t in ('auth', 'login', 'log in', 'logged in', 'logged out', 'sign in', 'credential')) else 'error')
+                try:
+                    stdout, stderr = await asyncio.wait_for(process.communicate(), 20)
+                    diagnostic = stderr.decode(errors='replace').lower()
+                    state = 'ready' if process.returncode == 0 and b'gemini-' in stdout else ('auth_required' if any(t in diagnostic for t in ('auth', 'login', 'log in', 'logged in', 'logged out', 'sign in', 'credential')) else 'error')
+                except asyncio.TimeoutError:
+                    # A locally open PTY does not establish provider connectivity.
+                    # Replace stale readiness without deleting the owner's login.
+                    state = 'provider_unreachable'
                 path = Path('/var/lib/cor-agent/run/connection.json')
                 try:
                     if state == 'ready' and json.loads(path.read_text()).get('state') == 'quota':
