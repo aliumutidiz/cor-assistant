@@ -6,6 +6,7 @@ import {
   eventInRange,
   calendarWindow,
   nextCalendarDay,
+  calendarDayGroups,
 } from '../shared/calendar-layout';
 const event = {
   id: 'a',
@@ -15,6 +16,31 @@ const event = {
   end: { dateTime: '2026-10-20T01:00:00+03:00' },
 };
 describe('calendar layout', () => {
+  it('keeps full-day timed spans above hours while preserving timed edges and exclusive endings', () => {
+    const groups = calendarDayGroups(
+      [
+        {
+          ...event,
+          id: 'full',
+          start: { dateTime: '2026-10-19T00:00:00+03:00' },
+          end: { dateTime: '2026-10-20T00:00:00+03:00' },
+        },
+        {
+          ...event,
+          id: 'span',
+          start: { dateTime: '2026-10-18T10:00:00+03:00' },
+          end: { dateTime: '2026-10-20T10:00:00+03:00' },
+        },
+        event,
+      ],
+      ['2026-10-19', '2026-10-20'],
+      'Europe/Istanbul',
+    );
+    expect(groups.get('2026-10-19')!.allDay.map((e) => e.id)).toEqual(['full', 'span']);
+    expect(groups.get('2026-10-19')!.timed.map((e) => e.id)).toEqual(['a']);
+    expect(groups.get('2026-10-20')!.allDay).toEqual([]);
+    expect(groups.get('2026-10-20')!.timed.map((e) => e.id)).toEqual(['span', 'a']);
+  });
   it('shows multi-day events on each overlapping local date', () => {
     expect(eventOnDay(event, '2026-10-19', 'Europe/Istanbul')).toBe(true);
     expect(eventOnDay(event, '2026-10-20', 'Europe/Istanbul')).toBe(true);

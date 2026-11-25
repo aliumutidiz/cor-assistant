@@ -1,5 +1,27 @@
 import type { CalendarEvent } from './contracts';
-import { dateKey } from './time';
+import { dateKey, localDateRange } from './time';
+/** Presentation only: midnight-to-midnight timed records belong above the hours too. */
+export function calendarDayGroups(events: CalendarEvent[], days: string[], zone: string) {
+  const byDay = eventsByDay(events, days, zone);
+  return new Map(
+    days.map((day) => {
+      const next = new Date(day + 'T12:00:00Z');
+      next.setUTCDate(next.getUTCDate() + 1);
+      const bounds = localDateRange(day, next.toISOString().slice(0, 10), zone);
+      const start = Date.parse(bounds.from);
+      const end = Date.parse(bounds.to);
+      const allDay: CalendarEvent[] = [],
+        timed: CalendarEvent[] = [];
+      for (const event of byDay.get(day) ?? []) {
+        const coversDay =
+          Boolean(event.start.date) ||
+          (Date.parse(event.start.dateTime!) <= start && Date.parse(event.end.dateTime!) >= end);
+        (coversDay ? allDay : timed).push(event);
+      }
+      return [day, { allDay, timed }] as const;
+    }),
+  );
+}
 export function eventOnDay(event: CalendarEvent, day: string, zone: string) {
   const start = event.start.date ?? dateKey(new Date(event.start.dateTime!), zone);
   if (event.end.date) return day >= start && day < event.end.date;

@@ -9,13 +9,17 @@ test.beforeEach(async ({ page }) => {
       calendarId: 'primary',
       summary: `${i < 8 ? 'All-day planning' : 'Project review'} ${i + 1} with a long descriptive title that must stay readable`,
       start:
-        i < 8
-          ? { date: '2026-10-19' }
-          : { dateTime: `2026-10-19T${String(i + 1).padStart(2, '0')}:00:00+03:00` },
+        i === 7
+          ? { dateTime: '2026-10-19T00:00:00+03:00' }
+          : i < 8
+            ? { date: '2026-10-19' }
+            : { dateTime: `2026-10-19T${String(i + 1).padStart(2, '0')}:00:00+03:00` },
       end:
-        i < 8
-          ? { date: '2026-10-20' }
-          : { dateTime: `2026-10-19T${String(i + 2).padStart(2, '0')}:00:00+03:00` },
+        i === 7
+          ? { dateTime: '2026-10-20T00:00:00+03:00' }
+          : i < 8
+            ? { date: '2026-10-20' }
+            : { dateTime: `2026-10-19T${String(i + 2).padStart(2, '0')}:00:00+03:00` },
     }));
     let data: unknown = [];
     if (path === '/api/session')
@@ -76,13 +80,41 @@ test('all-day records stay compact, expand explicitly and leave room for the tim
   await page.getByRole('button', { name: 'Week', exact: true }).click();
   const cell = page.locator('.all-day-cell').first();
   await expect(cell.locator(':scope > .all-day-event')).toHaveCount(2);
+  await expect(page.locator('.grid-event')).toHaveCount(4);
   expect(await cell.evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(120);
   await cell.locator('summary').click();
   await expect(cell.locator('details')).toHaveAttribute('open', '');
   await expect(cell.locator('details .all-day-event')).toHaveCount(6);
   expect(await cell.evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(120);
   await cell.locator('summary').click();
+  for (const scrollTop of [0, 900]) {
+    await page.locator('.week-scroll').evaluate((el, top) => {
+      el.scrollTop = top;
+    }, scrollTop);
+    await expect
+      .poll(async () => {
+        const header = await page.locator('.day-header').first().boundingBox();
+        const band = await cell.boundingBox();
+        return Math.abs(band!.y - (header!.y + header!.height));
+      })
+      .toBeLessThanOrEqual(1);
+  }
   await page.screenshot({ path: '.runtime/screenshots/calendar-week-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Day', exact: true }).click();
+  await expect(page.locator('.all-day-cell')).toHaveCount(1);
+  await page.locator('.week-scroll').evaluate((el) => {
+    el.scrollTop = 1000;
+  });
+  await expect
+    .poll(async () => {
+      const header = await page.locator('.day-header').boundingBox();
+      const band = await page.locator('.all-day-cell').boundingBox();
+      return Math.abs(band!.y - (header!.y + header!.height));
+    })
+    .toBeLessThanOrEqual(1);
+  await page.screenshot({ path: '.runtime/screenshots/calendar-day-pinned-mobile.png', fullPage: false });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole('button', { name: 'Ask C.O.R.' }).click();
   await expect(page.locator('.assistant-panel')).toBeVisible();
 });

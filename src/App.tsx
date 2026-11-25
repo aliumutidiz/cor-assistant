@@ -81,6 +81,7 @@ import {
   eventLanes,
   eventInRange,
   eventsByDay,
+  calendarDayGroups,
   calendarWindow,
   nextCalendarDay,
 } from '../shared/calendar-layout';
@@ -777,6 +778,15 @@ export function App() {
       ),
     [matchingEvents, days, zone],
   );
+  const timelineGroups = useMemo(
+    () =>
+      calendarDayGroups(
+        matchingEvents,
+        ['day', 'week'].includes(view) ? days.map((day) => day.toISOString().slice(0, 10)) : [],
+        zone,
+      ),
+    [matchingEvents, days, zone, view],
+  );
 
   const pending = operations.filter((o) => o.status === 'awaiting_approval');
   if (loading)
@@ -1325,14 +1335,12 @@ export function App() {
                           <strong>{d.getUTCDate()}</strong>
                         </button>
                       ))}
-                      {matchingEvents.some((e) => e.start.date) && (
+                      {[...timelineGroups.values()].some((group) => group.allDay.length) && (
                         <>
                           <div className="all-day-label">All day</div>
                           {days.map((day) => {
                             const key = day.toISOString().slice(0, 10);
-                            const list = matchingEvents.filter(
-                              (e) => e.start.date && eventOnDay(e, key, zone),
-                            );
+                            const list = timelineGroups.get(key)?.allDay ?? [];
                             return (
                               <div className="all-day-cell" key={'all-' + key}>
                                 {list.slice(0, 2).map((event) => (
@@ -1374,9 +1382,7 @@ export function App() {
                       </div>
                       {days.map((d) => {
                         const key = d.toISOString().slice(0, 10);
-                        const list = matchingEvents.filter(
-                          (e) => e.start.dateTime && eventOnDay(e, key, zone),
-                        );
+                        const list = timelineGroups.get(key)?.timed ?? [];
                         const lanes = eventLanes(list);
                         return (
                           <div className="day-column" key={key}>

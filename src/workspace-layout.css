@@ -89,14 +89,26 @@
   max-height: none;
 }
 .week-grid {
+  --day-heading-height: 64px;
   min-width: 800px;
 }
 .single-day .week-grid {
   min-width: 0;
 }
 .day-header {
-  height: 64px;
+  height: var(--day-heading-height);
   gap: 2px;
+}
+.day-header,
+.zone-label {
+  z-index: 4;
+}
+.all-day-label,
+.all-day-cell {
+  position: sticky;
+  top: var(--day-heading-height);
+  z-index: 3;
+  background: var(--tone-190);
 }
 .day-header strong {
   font-size: 20px;
@@ -424,7 +436,10 @@
     max-height: none;
   }
   .day-header {
-    height: 60px;
+    height: var(--day-heading-height);
+  }
+  .week-grid {
+    --day-heading-height: 60px;
   }
   .all-day-event {
     min-height: 32px;
