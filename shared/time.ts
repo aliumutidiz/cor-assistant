@@ -1,10 +1,18 @@
+// Reuse bounded formatters: constructing Intl objects per event/day blocks calendar interaction.
+const dayFormatters = new Map<string, Intl.DateTimeFormat>();
 export function dateKey(date: Date, timeZone: string) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
+  let formatter = dayFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    if (dayFormatters.size >= 32) dayFormatters.delete(dayFormatters.keys().next().value!);
+    dayFormatters.set(timeZone, formatter);
+  }
+  return formatter.format(date);
 }
 export function localDayRange(timeZone: string, days = 1, now = new Date()) {
   const local = dateKey(now, timeZone);

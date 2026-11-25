@@ -20,12 +20,14 @@ export function MemoryPanel({
   timeZone,
   operations,
   mode = 'memory',
+  canEdit = true,
 }: {
   perform: (a: OperationInput) => Promise<Operation | undefined>;
   revision: string;
   timeZone: string;
   operations: Operation[];
   mode?: 'memory' | 'programs';
+  canEdit?: boolean;
 }) {
   const [query, setQuery] = useState(''),
     [kind, setKind] = useState(mode === 'programs' ? 'program' : ''),
@@ -90,6 +92,15 @@ export function MemoryPanel({
       cancel.abort();
     };
   }, [path, revision, refresh]);
+  const recordPending = (record: MemoryRecord) =>
+    !canEdit ||
+    operations.some(
+      (op) =>
+        ['queued', 'running', 'awaiting_approval', 'unknown'].includes(op.status) &&
+        'memoryId' in op.action &&
+        op.action.memoryId === record.id &&
+        op.action.version === record.version,
+    );
   return (
     <section className={'memory-panel ' + (mode === 'programs' ? 'programs-workspace' : '')}>
       <div className="memory-viewbar">
@@ -142,7 +153,7 @@ export function MemoryPanel({
         <button className="icon-button" aria-label="Refresh records" onClick={() => setRefresh((v) => v + 1)}>
           <ArrowsClockwise size={18} />
         </button>
-        <button className="button primary" onClick={() => setEditor(null)}>
+        <button className="button primary" disabled={!canEdit} onClick={() => setEditor(null)}>
           <Plus size={16} />
           {mode === 'programs' ? 'Add program' : 'Add record'}
         </button>
@@ -193,7 +204,7 @@ export function MemoryPanel({
             </p>
             <ResourcePreview
               record={record}
-              busy={!!toggling}
+              busy={!!toggling || recordPending(record)}
               toggle={async (id) => {
                 if (toggling) return;
                 const original = record;
@@ -259,6 +270,7 @@ export function MemoryPanel({
               {record.kind === 'task' && !record.archived && (
                 <button
                   className="text-button"
+                  disabled={recordPending(record)}
                   onClick={async () => {
                     try {
                       await perform({
@@ -278,6 +290,7 @@ export function MemoryPanel({
               {record.archived && (
                 <button
                   className="text-button"
+                  disabled={recordPending(record)}
                   onClick={async () => {
                     try {
                       await perform({ kind: 'memory.restore', memoryId: record.id, version: record.version });
@@ -291,7 +304,11 @@ export function MemoryPanel({
                 </button>
               )}
               {!record.archived && (
-                <button className="text-button" onClick={() => setEditor(record)}>
+                <button
+                  className="text-button"
+                  disabled={recordPending(record)}
+                  onClick={() => setEditor(record)}
+                >
                   <PencilSimple size={15} />
                   Edit
                 </button>
@@ -299,6 +316,7 @@ export function MemoryPanel({
               {!record.archived && (
                 <button
                   className="text-button"
+                  disabled={recordPending(record)}
                   onClick={async () => {
                     try {
                       await perform({ kind: 'memory.archive', memoryId: record.id, version: record.version });

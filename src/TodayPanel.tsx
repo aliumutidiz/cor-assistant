@@ -7,11 +7,15 @@ import type { PlannerItem } from './PlannerDetail';
 export function TodayPanel({
   zone,
   revision,
+  operations,
+  busy,
   open,
   perform,
 }: {
   zone: string;
   revision: string;
+  operations: Operation[];
+  busy: boolean;
   open: (item: CalendarEvent) => void;
   perform: (input: OperationInput) => Promise<Operation | undefined>;
 }) {
@@ -66,10 +70,39 @@ export function TodayPanel({
       clearInterval(timer);
     };
   }, [zone, revision]);
+  useEffect(() => {
+    setTasks((previous) => ({
+      ...previous,
+      items: previous.items.filter(
+        (task) =>
+          !operations.some(
+            (op) =>
+              op.status === 'succeeded' &&
+              op.action.kind === 'memory.complete' &&
+              op.action.memoryId === task.id &&
+              op.action.version === task.version,
+          ),
+      ),
+    }));
+  }, [operations]);
+  const pending = (task: { id: string; version: number }) =>
+    operations.some(
+      (op) =>
+        ['queued', 'running', 'awaiting_approval', 'unknown'].includes(op.status) &&
+        'memoryId' in op.action &&
+        op.action.memoryId === task.id &&
+        op.action.version === task.version,
+    );
   return (
     <section className="today-panel">
       {loading && <p role="status">Loading your day…</p>}
       {error && <p role="alert">{error}</p>}
+      <div className="today-section-heading">
+        <h2>Schedule</h2>
+        <span>
+          {items.length} {items.length === 1 ? 'item' : 'items'}
+        </span>
+      </div>
       <div className="today-agenda">
         {items.map((item) => (
           <button
@@ -89,20 +122,26 @@ export function TodayPanel({
         ))}
         {!loading && !items.length && !error && <p>No scheduled items today.</p>}
       </div>
-      <h3>Open tasks</h3>
+      <div className="today-section-heading">
+        <h2>Open tasks</h2>
+        <span>
+          {tasks.items.length} {tasks.items.length === 1 ? 'task' : 'tasks'}
+        </span>
+      </div>
       <p className="muted">Your open tasks, without automatically scheduling them.</p>
       {tasks.items.map((task) => (
         <div className="today-task" key={task.id}>
           <span>{task.title}</span>
           <button
             className="text-button"
+            disabled={busy || pending(task)}
             onClick={() =>
               void perform({ kind: 'memory.complete', memoryId: task.id, version: task.version }).catch((e) =>
                 setError((e as Error).message),
               )
             }
           >
-            Done
+            {pending(task) ? 'Pending…' : 'Done'}
           </button>
         </div>
       ))}

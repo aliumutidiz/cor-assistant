@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { eventOnDay, eventLanes } from '../shared/calendar-layout';
+import {
+  eventOnDay,
+  eventLanes,
+  eventsByDay,
+  eventInRange,
+  calendarWindow,
+  nextCalendarDay,
+} from '../shared/calendar-layout';
 const event = {
   id: 'a',
   calendarId: 'primary',
@@ -32,5 +39,43 @@ describe('calendar layout', () => {
     expect(lanes.get('a')).toEqual({ lane: 0, columns: 2 });
     expect(lanes.get('b')).toEqual({ lane: 1, columns: 2 });
     expect(lanes.get('c')).toEqual({ lane: 0, columns: 1 });
+  });
+  it('indexes timed and all-day records with the same local boundary semantics, including DST', () => {
+    const records = [
+      event,
+      { ...event, id: 'all', start: { date: '2026-10-24' }, end: { date: '2026-10-26' } },
+      {
+        ...event,
+        id: 'dst',
+        start: { dateTime: '2026-10-24T23:30:00Z' },
+        end: { dateTime: '2026-10-25T01:30:00Z' },
+      },
+    ];
+    const days = ['2026-10-19', '2026-10-20', '2026-10-24', '2026-10-25', '2026-10-26'];
+    for (const zone of ['Europe/Berlin', 'America/New_York', 'Europe/Istanbul']) {
+      const indexed = eventsByDay(records, days, zone);
+      for (const day of days) {
+        expect(indexed.get(day)).toEqual(records.filter((record) => eventOnDay(record, day, zone)));
+        const next = new Date(day + 'T12:00Z');
+        next.setUTCDate(next.getUTCDate() + 1);
+        expect(
+          records.filter((record) => eventInRange(record, day, next.toISOString().slice(0, 10), zone)),
+        ).toEqual(indexed.get(day));
+      }
+    }
+  });
+  it('prefetches the actual next month including edge weeks across year boundaries', () => {
+    const day = nextCalendarDay('2026-11-25', 'month', 1);
+    expect(day).toBe('2026-12-01');
+    expect(calendarWindow(day, 'month')).toMatchObject({
+      from: '2026-11-30',
+      until: '2027-01-04',
+      count: 35,
+    });
+    expect(calendarWindow(nextCalendarDay(day, 'month', 1), 'month')).toMatchObject({
+      from: '2026-12-28',
+      until: '2027-02-01',
+    });
+    expect(calendarWindow('2026-02-01', 'month')).toMatchObject({ from: '2026-01-26', count: 35 });
   });
 });

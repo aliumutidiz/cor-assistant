@@ -34,6 +34,7 @@ test('shows view-only shared access without owner connection settings or chat wr
         preferences: { timeZone: 'Europe/Istanbul', language: 'en' },
       };
     if (path === '/api/planner') value = { items: [], partial: false };
+    if (path === '/api/memories') value = { items: [] };
     if (path === '/api/history') value = { operations: [], jobs: [] };
     if (path === '/api/chat/context')
       value = { version: 1, contextId: 'initial', contextAfter: '0', visibleAfter: '0' };
@@ -49,4 +50,11 @@ test('shows view-only shared access without owner connection settings or chat wr
   await expect(page.getByRole('button', { name: 'Shared access', exact: true })).not.toBeVisible();
   await page.getByRole('navigation').getByRole('button', { name: 'Assistant', exact: true }).click();
   await expect(page.locator('#chat-input')).toBeDisabled();
+  const nav = page.getByRole('navigation', { name: 'Workspace', exact: true });
+  await nav.getByRole('button', { name: 'Memory', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Add record', exact: true })).toBeDisabled();
+  await nav.getByRole('button', { name: 'Reminders', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Add reminder', exact: true })).toBeDisabled();
+  await nav.getByRole('button', { name: 'Routines', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Create routine', exact: true })).toBeDisabled();
 });

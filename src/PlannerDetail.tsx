@@ -1,6 +1,8 @@
+import { X } from '@phosphor-icons/react';
+import { focusDialog } from './dialog-focus';
 import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { api } from './api';
+import { api, formatDate } from './api';
 import type { CalendarEvent, Operation, OperationInput } from '../shared/contracts';
 import type { MemoryRecord } from '../shared/memory';
 export type PlannerItem = CalendarEvent & {
@@ -12,12 +14,16 @@ export type PlannerItem = CalendarEvent & {
 };
 export function PlannerDetail({
   item,
+  zone,
+  canEdit,
   close,
   perform,
   changed,
   manage,
 }: {
   item: PlannerItem;
+  zone: string;
+  canEdit: boolean;
   close: () => void;
   perform: (input: OperationInput) => Promise<Operation | undefined>;
   changed: () => void;
@@ -76,27 +82,35 @@ export function PlannerDetail({
     >
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
-        <Dialog.Content className="modal-content">
-          <Dialog.Title>{item.summary}</Dialog.Title>
-          <Dialog.Description>
+        <Dialog.Content className="modal-content" onOpenAutoFocus={focusDialog}>
+          <div className="dialog-heading">
+            <Dialog.Title>{item.summary}</Dialog.Title>
+            <Dialog.Description>
+              {item.start.dateTime ? formatDate(item.start.dateTime, zone) : item.start.date}
+            </Dialog.Description>
+            <Dialog.Close className="icon-button modal-close" aria-label="Close plan details">
+              <X size={20} />
+            </Dialog.Close>
+          </div>
+          <p className="muted">
             {item.source === 'program'
               ? 'This occurrence belongs to your personal program. Other dates stay unchanged.'
               : 'This is a scheduled notification. Manage its source in the corresponding page.'}
-          </Dialog.Description>
+          </p>
           {error && <p role="alert">{error}</p>}
           <button className="text-button" onClick={manage}>
             Manage {item.source === 'program' ? 'program' : item.source}
           </button>
-          {item.source === 'program' && (
+          {item.source === 'program' && canEdit && (
             <>
-              <div className="form-actions">
-                <button disabled={busy} onClick={() => void update('done')}>
+              <div className="form-actions plan-actions">
+                <button className="button primary" disabled={busy} onClick={() => void update('done')}>
                   Done
                 </button>
-                <button disabled={busy} onClick={() => void update('skipped')}>
+                <button className="button subtle" disabled={busy} onClick={() => void update('skipped')}>
                   Skip this occurrence
                 </button>
-                <button disabled={busy} onClick={() => void update('restore')}>
+                <button className="button subtle" disabled={busy} onClick={() => void update('restore')}>
                   Restore original
                 </button>
               </div>
@@ -128,7 +142,7 @@ export function PlannerDetail({
               </button>
             </>
           )}
-          <Dialog.Close className="text-button">Close</Dialog.Close>
+          <Dialog.Close className="button subtle">Close</Dialog.Close>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

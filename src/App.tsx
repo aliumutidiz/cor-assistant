@@ -1,3 +1,6 @@
+import { useWorkspacePage } from './workspace-navigation';
+import { mergeOperationHistory } from './operation-history';
+import { OperationFeedback } from './OperationFeedback';
 import { focusDialog } from './dialog-focus';
 import { MonthCalendar } from './MonthCalendar';
 import { useChatSync } from './chat-sync';
@@ -7,6 +10,7 @@ import { ChatTools, CopyReply } from './ChatTools';
 import type { ConversationState } from '../shared/chat-controls';
 import {
   useCallback,
+  useMemo,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -72,7 +76,14 @@ import {
   ApiError,
   type Session,
 } from './api';
-import { eventOnDay, eventLanes } from '../shared/calendar-layout';
+import {
+  eventOnDay,
+  eventLanes,
+  eventInRange,
+  eventsByDay,
+  calendarWindow,
+  nextCalendarDay,
+} from '../shared/calendar-layout';
 import { exportCalendar } from '../shared/calendar-export';
 import { operationMessage } from '../shared/operation-message';
 import { AgyPanel, type AgyStatus } from './AgyPanel';
@@ -87,16 +98,6 @@ const MemoryPanel = lazy(() => import('./MemoryPanel').then((module) => ({ defau
 const ConnectionSettings = lazy(() =>
   import('./ConnectionSettings').then((module) => ({ default: module.ConnectionSettings })),
 );
-type Page =
-  | 'today'
-  | 'assistant'
-  | 'calendar'
-  | 'routines'
-  | 'reminders'
-  | 'memories'
-  | 'programs'
-  | 'history'
-  | 'settings';
 type Message = {
   id?: string;
   exchangeId?: string;
@@ -176,11 +177,16 @@ function Empty({ title, children }: { title: string; children?: ReactNode }) {
 }
 export function App() {
   const [s, setS] = useState<Session>();
-  const [page, setPage] = useState<Page>('calendar');
+  const [page, setPage] = useWorkspacePage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   useEffect(() => {
     setMobileMenuOpen(false);
     setChatOpen(false);
+    setEventEditor(undefined);
+    setRoutineEditor(undefined);
+    setPlannerDetail(undefined);
+    setAdvanced(false);
+    window.scrollTo({ top: 0, left: 0 });
   }, [page]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [calendarId, setCalendarId] = useState('primary');
@@ -188,6 +194,8 @@ export function App() {
   const [localItems, setLocalItems] = useState<PlannerItem[]>([]);
   const [localError, setLocalError] = useState('');
   const [localPartial, setLocalPartial] = useState(false);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [plannerRefresh, setPlannerRefresh] = useState(0);
   const [plannerDetail, setPlannerDetail] = useState<PlannerItem>();
   const [layers, setLayers] = useState({ calendar: true, program: true, reminder: true, routine: true });
   useEffect(() => {
@@ -204,11 +212,13 @@ export function App() {
       /* Storage is optional. */
     }
   }, [s?.owner]);
-  const events: CalendarEvent[] = [
-    ...(layers.calendar ? googleEvents : []),
-    ...localItems.filter((item) => layers[item.source]),
-  ].sort((a, b) =>
-    (a.start.dateTime ?? a.start.date ?? '').localeCompare(b.start.dateTime ?? b.start.date ?? ''),
+  const allEvents = useMemo<CalendarEvent[]>(
+    () =>
+      [...(layers.calendar ? googleEvents : []), ...localItems.filter((item) => layers[item.source])].sort(
+        (a, b) =>
+          (a.start.dateTime ?? a.start.date ?? '').localeCompare(b.start.dateTime ?? b.start.date ?? ''),
+      ),
+    [googleEvents, localItems, layers],
   );
   const openCalendarItem = (event: CalendarEvent) => {
     const local =
@@ -221,13 +231,17 @@ export function App() {
   const [eventsError, setEventsError] = useState('');
   const eventsRequest = useRef(0);
   const eventCache = useRef(new CalendarCache());
+  const displayedCalendarKey = useRef('');
+  const planningCache = useRef(new CalendarCache<{ items: PlannerItem[]; partial: boolean }>());
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [operations, setOperations] = useState<Operation[]>([]);
+  const [actionFeedback, setActionFeedback] = useState<Operation>();
+  const dismissActionFeedback = useCallback(() => setActionFeedback(undefined), []);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [historyFilter, setHistoryFilter] = useState('');
   const [historyQuery, setHistoryQuery] = useState('');
   const [dismissedReminders, setDismissedReminders] = useState<string[]>([]);
-  const [date, setDate] = useState(() => new Date());
+  const [selectedDay, setSelectedDay] = useState(() => dateKey(new Date(), 'Europe/Istanbul'));
   const [clockNow, setClockNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setClockNow(new Date()), 60000);
@@ -241,6 +255,8 @@ export function App() {
   useEffect(() => {
     const expired = () => {
       eventCache.current.clear();
+      planningCache.current.clear();
+      setLocalItems([]);
       setEvents([]);
       setS(undefined);
       setLoginRequired(true);
@@ -347,7 +363,10 @@ export function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const calendarScroll = useRef<HTMLDivElement>(null);
   const zone = s?.preferences.timeZone ?? 'Europe/Istanbul';
-  const selectedDay = dateKey(date, zone);
+  useEffect(() => {
+    setSelectedDay(dateKey(new Date(), zone));
+  }, [zone]);
+  const goToToday = () => setSelectedDay(dateKey(new Date(), zone));
   const centerCurrentTime = useCallback(
     (behavior: ScrollBehavior = 'auto') => {
       const node = calendarScroll.current;
@@ -368,34 +387,23 @@ export function App() {
     return () => cancelAnimationFrame(frame);
   }, [page, view, selectedDay, loading, centerCurrentTime]);
 
-  const movePeriod = (direction: number) => {
-    const next = new Date(selectedDay + 'T12:00:00Z');
-    if (view === 'month') {
-      next.setUTCDate(1);
-      next.setUTCMonth(next.getUTCMonth() + direction);
-    } else next.setUTCDate(next.getUTCDate() + direction * (view === 'day' ? 1 : 7));
-    setDate(next);
-  };
-  const anchor = new Date(selectedDay + 'T12:00:00Z');
-  const first = new Date(anchor);
-  first.setUTCDate(anchor.getUTCDate() - ((anchor.getUTCDay() + 6) % 7));
-  if (view === 'day') first.setTime(anchor.getTime());
-  if (view === 'month') {
-    first.setTime(anchor.getTime());
-    first.setUTCDate(1);
-    first.setUTCDate(first.getUTCDate() - ((first.getUTCDay() + 6) % 7));
-  }
-  const monthStart = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), 1));
-  const monthDays = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + 1, 0)).getUTCDate();
-  const monthWeeks = Math.ceil((((monthStart.getUTCDay() + 6) % 7) + monthDays) / 7);
-  const count = view === 'day' ? 1 : view === 'month' ? monthWeeks * 7 : 7;
-  const days = Array.from({ length: count }, (_, i) => {
-    const d = new Date(first);
-    d.setUTCDate(d.getUTCDate() + i);
-    return d;
-  });
-  const from = days[0].toISOString().slice(0, 10),
-    until = new Date(days.at(-1)!.getTime() + 86400000).toISOString().slice(0, 10);
+  const movePeriod = (direction: number) => setSelectedDay(nextCalendarDay(selectedDay, view, direction));
+  const { anchor, count, from: firstDay, until } = calendarWindow(selectedDay, view);
+  const periodAnchor = view === 'month' ? selectedDay.slice(0, 7) + '-01' : firstDay;
+  const days = useMemo(
+    () =>
+      Array.from({ length: count }, (_, i) => {
+        const d = new Date(firstDay + 'T12:00:00Z');
+        d.setUTCDate(d.getUTCDate() + i);
+        return d;
+      }),
+    [firstDay, count],
+  );
+  const from = firstDay;
+  const events = useMemo(
+    () => allEvents.filter((event) => eventInRange(event, from, until, zone)),
+    [allEvents, from, until, zone],
+  );
   const refresh = useCallback(async () => {
     try {
       const [c, r, h] = await Promise.all([
@@ -405,7 +413,7 @@ export function App() {
       ]);
       setCalendars(c);
       setRoutines(r);
-      setOperations(h.operations);
+      setOperations((previous) => mergeOperationHistory(previous, h.operations));
       setJobs(h.jobs);
     } catch (e) {
       setError((e as Error).message);
@@ -455,10 +463,12 @@ export function App() {
           to: zonedISO(last + 'T00:00', zone),
         }).toString();
       const key = queryFor(from, until);
-      const cached = eventCache.current.peek(key);
-      if (cached) setEvents(cached.events);
-      else setEvents([]);
-      setEventsLoading(!cached);
+      const cached = eventCache.current.covering(key);
+      if (cached) setEvents(cached.value);
+      else if (new URLSearchParams(displayedCalendarKey.current).get('calendarId') !== calendarId)
+        setEvents([]);
+      displayedCalendarKey.current = key;
+      setEventsLoading(force || !cached?.fresh);
       setEventsError('');
       try {
         const result = await eventCache.current.load(
@@ -467,60 +477,85 @@ export function App() {
           force,
         );
         if (request === eventsRequest.current) setEvents(result);
-        // Prefetch only the next visible range, after the foreground request succeeds.
-        const distance = Date.parse(until + 'T12:00:00Z') - Date.parse(from + 'T12:00:00Z');
-        const nextUntil = new Date(Date.parse(until + 'T12:00:00Z') + distance).toISOString().slice(0, 10);
-        const nextKey = queryFor(until, nextUntil);
+        // Prefetch the actual next view, including its overlapping edge weeks.
+        const next = calendarWindow(nextCalendarDay(periodAnchor, view, 1), view);
+        const nextKey = queryFor(next.from, next.until);
         if (request === eventsRequest.current && (!s.googleConnected ? s.demo : true))
           void eventCache.current
             .load(nextKey, () => api<CalendarEvent[]>('/events?' + nextKey))
             .catch(() => {});
       } catch (e) {
         if (request !== eventsRequest.current) return;
-        if (!cached) setEvents([]);
         if (!s.demo && !s.googleConnected) return;
         setEventsError((e as Error).message);
       } finally {
         if (request === eventsRequest.current) setEventsLoading(false);
       }
     },
-    [s, calendarId, from, until, zone],
+    [s, calendarId, from, until, zone, periodAnchor, view],
   );
   useEffect(() => {
     void refreshEvents();
   }, [refreshEvents]);
+  const refreshAfterActions = useCallback(
+    (actions: OperationInput[]) => {
+      planningCache.current.clear();
+      if (actions.some((action) => /^(event|calendar|sharing)\./.test(action.kind))) {
+        eventCache.current.clear();
+        void refreshEvents(true);
+      }
+    },
+    [refreshEvents],
+  );
+  const refreshCalendar = () => {
+    planningCache.current.clear();
+    setPlannerRefresh((value) => value + 1);
+    void refreshEvents(true);
+  };
+
   useEffect(() => {
     if (!s) return;
-    const controller = new AbortController();
-    const load = () =>
-      api<{ items: PlannerItem[]; partial: boolean }>(
-        '/planner?' +
-          new URLSearchParams({
-            from: zonedISO(from + 'T00:00', zone),
-            to: zonedISO(until + 'T00:00', zone),
-          }),
-        undefined,
-        'GET',
-        undefined,
-        controller.signal,
-      )
+    let active = true;
+    const key = new URLSearchParams({
+      from: zonedISO(from + 'T00:00', zone),
+      to: zonedISO(until + 'T00:00', zone),
+    }).toString();
+    const cached = planningCache.current.covering(key);
+    if (cached) {
+      setLocalItems(cached.value.items);
+      setLocalPartial(cached.value.partial);
+    }
+    setLocalLoading(!cached?.fresh);
+    const load = (force = false) =>
+      planningCache.current
+        .load(
+          key,
+          async () => {
+            const result = await api<{ items: PlannerItem[]; partial: boolean }>('/planner?' + key);
+            if (!Array.isArray(result.items)) throw new Error('Invalid planning response.');
+            return result;
+          },
+          force,
+        )
         .then((result) => {
-          if (!Array.isArray(result.items)) throw new Error('Invalid planning response.');
-          if (controller.signal.aborted) return;
+          if (!active) return;
           setLocalItems(result.items);
           setLocalPartial(result.partial);
           setLocalError('');
         })
-        .catch((e) => {
-          if (!controller.signal.aborted) setLocalError((e as Error).message);
+        .catch((error) => {
+          if (active) setLocalError((error as Error).message);
+        })
+        .finally(() => {
+          if (active) setLocalLoading(false);
         });
     void load();
-    const timer = setInterval(() => void load(), 60000);
+    const timer = setInterval(() => void load(true), 60000);
     return () => {
-      controller.abort();
+      active = false;
       clearInterval(timer);
     };
-  }, [s, from, until, zone, operations.map((op) => op.id + ':' + op.status).join('|')]);
+  }, [s, from, until, zone, plannerRefresh, operations.map((op) => op.id + ':' + op.status).join('|')]);
   useEffect(() => {
     if (!s) return;
     const source = new EventSource('/api/progress');
@@ -528,19 +563,23 @@ export function App() {
     source.addEventListener('operations', (event) => {
       const next = JSON.parse((event as MessageEvent).data) as Operation[];
       setOperations((previous) => {
+        const merged = mergeOperationHistory(previous, next);
         if (
           JSON.stringify(previous.map((o) => [o.id, o.status])) !==
-          JSON.stringify(next.map((o) => [o.id, o.status]))
+          JSON.stringify(merged.map((o) => [o.id, o.status]))
         ) {
           void refresh();
-          eventCache.current.clear();
-          void refreshEvents(true);
+          const confirmed = merged.filter(
+            (op) =>
+              op.status === 'succeeded' && previous.find((old) => old.id === op.id)?.status !== 'succeeded',
+          );
+          if (confirmed.length) refreshAfterActions(confirmed.map((op) => op.action));
         }
-        return next;
+        return merged;
       });
     });
     return () => source.close();
-  }, [s, refresh, refreshEvents]);
+  }, [s, refresh, refreshEvents, refreshAfterActions]);
   useEffect(() => {
     const listener = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -556,6 +595,23 @@ export function App() {
     window.addEventListener('keydown', listener);
     return () => window.removeEventListener('keydown', listener);
   }, []);
+  useEffect(() => {
+    if (!actionFeedback) return;
+    const current = operations.find((op) => op.id === actionFeedback.id);
+    if (
+      current &&
+      (current.status !== actionFeedback.status || current.updatedAt !== actionFeedback.updatedAt)
+    )
+      setActionFeedback(current);
+  }, [operations, actionFeedback]);
+  const routinePending = (routine: Routine) =>
+    operations.some(
+      (op) =>
+        ['queued', 'running', 'awaiting_approval', 'unknown'].includes(op.status) &&
+        'routineId' in op.action &&
+        op.action.routineId === routine.id &&
+        op.action.version === routine.version,
+    );
   const perform = async (action: OperationInput) => {
     if (s?.actor?.role === 'viewer') {
       setError('This workspace invitation allows viewing only.');
@@ -565,7 +621,12 @@ export function App() {
     setError('');
     try {
       const op = await api<Operation>('/operations', action, 'POST', crypto.randomUUID());
-      await refresh();
+      setActionFeedback(op);
+      setOperations((current) => mergeOperationHistory(current, [op]));
+      if (op.status === 'succeeded') refreshAfterActions([action]);
+      void refresh();
+      if (op.status === 'failed' || op.status === 'unknown')
+        throw new Error(op.error ?? 'The change was not confirmed. Check Activity before trying again.');
       if (op.status === 'awaiting_approval') setPage('history');
       return op;
     } catch (e) {
@@ -579,6 +640,7 @@ export function App() {
     setBusy(true);
     try {
       const operation = await api<Operation>(`/operations/${id}/${action}`, hash ? { hash } : {});
+      if (operation.status === 'succeeded') refreshAfterActions([operation.action]);
       if (action === 'approve')
         setMessages((m) => [
           ...m,
@@ -697,11 +759,25 @@ export function App() {
     };
   }, [s, historyLoading, refresh]);
   const todayEvents = events.filter((e) => eventOnDay(e, dateKey(new Date(), zone), zone));
-  const matchingEvents = events.filter((e) =>
-    (e.summary + ' ' + (e.location ?? ''))
-      .toLocaleLowerCase('tr')
-      .includes(eventSearch.toLocaleLowerCase('tr')),
+  const matchingEvents = useMemo(
+    () =>
+      events.filter((e) =>
+        (e.summary + ' ' + (e.location ?? ''))
+          .toLocaleLowerCase('tr')
+          .includes(eventSearch.toLocaleLowerCase('tr')),
+      ),
+    [events, eventSearch],
   );
+  const dayGroups = useMemo(
+    () =>
+      eventsByDay(
+        matchingEvents,
+        days.map((day) => day.toISOString().slice(0, 10)),
+        zone,
+      ),
+    [matchingEvents, days, zone],
+  );
+
   const pending = operations.filter((o) => o.status === 'awaiting_approval');
   if (loading)
     return (
@@ -998,6 +1074,8 @@ export function App() {
           {page === 'today' && (
             <TodayPanel
               zone={zone}
+              operations={operations}
+              busy={busy || s.actor?.role === 'viewer'}
               revision={operations.map((op) => op.id + op.status).join('|')}
               open={openCalendarItem}
               perform={perform}
@@ -1036,7 +1114,11 @@ export function App() {
                   Summarize today <ArrowRight size={15} />
                 </button>
               </div>
-              <section className="calendar-panel" aria-label="Calendar" aria-busy={eventsLoading}>
+              <section
+                className="calendar-panel"
+                aria-label="Calendar"
+                aria-busy={eventsLoading || localLoading}
+              >
                 <div className="calendar-toolbar">
                   <div className="period-navigation">
                     <h2>
@@ -1056,7 +1138,7 @@ export function App() {
                     <button className="icon-button" aria-label="Next period" onClick={() => movePeriod(1)}>
                       <CaretRight size={17} />
                     </button>
-                    <button className="button subtle small" onClick={() => setDate(new Date())}>
+                    <button className="button subtle small" onClick={goToToday}>
                       Today
                     </button>
                   </div>
@@ -1085,25 +1167,21 @@ export function App() {
                     aria-label="Go to date"
                     value={selectedDay}
                     onChange={(e) => {
-                      if (e.target.value) setDate(new Date(e.target.value + 'T12:00:00Z'));
+                      if (e.target.value) setSelectedDay(e.target.value);
                     }}
                   />
                   {(view === 'day' || view === 'week') && (
                     <button
                       className="button subtle small"
                       onClick={() => {
-                        setDate(new Date());
+                        goToToday();
                         centerCurrentTime('smooth');
                       }}
                     >
                       Now
                     </button>
                   )}
-                  <button
-                    className="icon-button"
-                    aria-label="Refresh calendar"
-                    onClick={() => void refreshEvents(true)}
-                  >
+                  <button className="icon-button" aria-label="Refresh calendar" onClick={refreshCalendar}>
                     <ArrowsClockwise size={18} />
                   </button>
                 </div>
@@ -1144,8 +1222,8 @@ export function App() {
                       }}
                     />
                   </label>
-                  <span>
-                    {eventsLoading ? 'Refreshing…' : `${events.length} events`} · {zone}
+                  <span className="calendar-sync-status" role="status" aria-live="polite">
+                    {eventsLoading || localLoading ? 'Updating…' : `${events.length} items`}
                   </span>
                 </div>
                 {(localError || localPartial) && (
@@ -1158,7 +1236,7 @@ export function App() {
                 {eventsError && (
                   <div role="alert" className="calendar-inline-error">
                     {eventsError}
-                    <button className="text-button" onClick={() => void refreshEvents(true)}>
+                    <button className="text-button" onClick={refreshCalendar}>
                       Retry
                     </button>
                   </div>
@@ -1202,11 +1280,14 @@ export function App() {
                   <MonthCalendar
                     days={days}
                     anchor={anchor}
-                    events={matchingEvents}
+                    byDay={dayGroups}
+                    loading={eventsLoading || localLoading}
+                    incomplete={Boolean(eventsError || localError || localPartial)}
                     zone={zone}
+                    onSelect={setSelectedDay}
                     onOpen={openCalendarItem}
                     onDay={(day) => {
-                      setDate(day);
+                      setSelectedDay(day.toISOString().slice(0, 10));
                       setView('day');
                     }}
                   />
@@ -1227,7 +1308,7 @@ export function App() {
                         <button
                           aria-label={`Open ${d.toISOString().slice(0, 10)}`}
                           onClick={() => {
-                            setDate(d);
+                            setSelectedDay(d.toISOString().slice(0, 10));
                             setView('day');
                           }}
                           key={d.toISOString()}
@@ -1402,7 +1483,7 @@ export function App() {
                     {calendars.find((c) => c.id === calendarId)?.summary ?? 'Calendar'}
                   </span>
                   <span>
-                    {zone} · {events.length} event
+                    {zone} · {events.length} {events.length === 1 ? 'item' : 'items'}
                   </span>
                   <button
                     className="text-button"
@@ -1427,7 +1508,13 @@ export function App() {
             </>
           )}
           {page === 'reminders' && (
-            <ReminderPanel zone={zone} telegramEnabled={!!s?.telegram?.enabled} perform={perform} />
+            <ReminderPanel
+              zone={zone}
+              telegramEnabled={!!s?.telegram?.enabled}
+              canEdit={s.actor?.role !== 'viewer'}
+              operations={operations}
+              perform={perform}
+            />
           )}
           {page === 'routines' && (
             <section className="routine-section">
@@ -1463,7 +1550,7 @@ export function App() {
                   </div>
                   <button
                     className="icon-button"
-                    disabled={busy}
+                    disabled={busy || s.actor?.role === 'viewer' || routinePending(r)}
                     aria-label={r.enabled ? 'Pause routine' : 'Enable routine'}
                     onClick={() =>
                       void perform({
@@ -1483,7 +1570,11 @@ export function App() {
                   >
                     {r.enabled ? <Pause size={18} /> : <Play size={18} />}
                   </button>
-                  <button className="button subtle small" onClick={() => setRoutineEditor(r)}>
+                  <button
+                    className="button subtle small"
+                    disabled={s.actor?.role === 'viewer' || routinePending(r)}
+                    onClick={() => setRoutineEditor(r)}
+                  >
                     Edit
                   </button>
                 </article>
@@ -1539,7 +1630,9 @@ export function App() {
                     </option>
                   ))}
                 </select>
-                <small className="muted">Latest {operations.length} action</small>
+                <small className="muted">
+                  Latest {operations.length} {operations.length === 1 ? 'action' : 'actions'}
+                </small>
               </div>
               {operations
                 .filter(
@@ -1746,6 +1839,7 @@ export function App() {
               <MemoryPanel
                 key={page}
                 mode={page === 'programs' ? 'programs' : 'memory'}
+                canEdit={s.actor?.role !== 'viewer'}
                 perform={perform}
                 operations={operations}
                 timeZone={s.preferences.timeZone}
@@ -1988,6 +2082,13 @@ export function App() {
           </div>
         </form>
       </aside>
+      {actionFeedback && (
+        <OperationFeedback
+          operation={actionFeedback}
+          onDismiss={dismissActionFeedback}
+          onActivity={() => setPage('history')}
+        />
+      )}
       {eventEditor !== undefined && (
         <EventEditor
           event={eventEditor}
@@ -1995,6 +2096,7 @@ export function App() {
           calendars={calendars}
           zone={zone}
           busy={busy}
+          readOnly={s.actor?.role === 'viewer'}
           onClose={() => setEventEditor(undefined)}
           save={async (a) => {
             await perform(a);
@@ -2005,6 +2107,8 @@ export function App() {
       {plannerDetail && (
         <PlannerDetail
           item={plannerDetail}
+          zone={zone}
+          canEdit={s.actor?.role !== 'viewer'}
           close={() => setPlannerDetail(undefined)}
           perform={perform}
           changed={() => void refresh()}
@@ -2041,6 +2145,7 @@ function EventEditor({
   calendarId,
   calendars,
   zone: ownerZone,
+  readOnly,
   busy,
   onClose,
   save,
@@ -2049,6 +2154,7 @@ function EventEditor({
   calendarId: string;
   calendars: Calendar[];
   zone: string;
+  readOnly: boolean;
   busy: boolean;
   onClose: () => void;
   save: (a: OperationInput) => Promise<void>;
@@ -2107,9 +2213,9 @@ function EventEditor({
     };
   }, [event?.id, event?.calendarId]);
   const [error, setError] = useState('');
-  const canEdit = !['reader', 'freeBusyReader'].includes(
-    calendars.find((c) => c.id === target)?.accessRole ?? 'owner',
-  );
+  const canEdit =
+    !readOnly &&
+    !['reader', 'freeBusyReader'].includes(calendars.find((c) => c.id === target)?.accessRole ?? 'owner');
   const changeScope = async (value: 'single' | 'series') => {
     if (!initialEvent?.recurringEventId) {
       setScope(value);

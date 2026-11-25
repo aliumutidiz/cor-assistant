@@ -9,10 +9,14 @@ import { api, dateTimeInput, formatDate, zonedISO } from './api';
 export function ReminderPanel({
   zone,
   telegramEnabled,
+  canEdit = true,
+  operations = [],
   perform,
 }: {
   zone: string;
   telegramEnabled: boolean;
+  canEdit?: boolean;
+  operations?: Operation[];
   perform: (action: OperationInput) => Promise<Operation>;
 }) {
   const [items, setItems] = useState<Reminder[]>([]);
@@ -62,6 +66,14 @@ export function ReminderPanel({
   const visible = items.filter((r) =>
     filter === 'active' ? r.state === 'scheduled' : r.state !== 'scheduled',
   );
+  const reminderPending = (reminder: Reminder) =>
+    operations.some(
+      (op) =>
+        ['queued', 'running', 'awaiting_approval', 'unknown'].includes(op.status) &&
+        'reminderId' in op.action &&
+        op.action.reminderId === reminder.id &&
+        op.action.version === reminder.version,
+    );
   return (
     <section className="reminder-workspace">
       <div className="reminder-toolbar">
@@ -73,7 +85,7 @@ export function ReminderPanel({
             History
           </button>
         </div>
-        <button className="button primary" onClick={() => setEditor(null)}>
+        <button className="button primary" disabled={!canEdit} onClick={() => setEditor(null)}>
           <Plus size={17} />
           Add reminder
         </button>
@@ -135,7 +147,7 @@ export function ReminderPanel({
                 <div className="reminder-actions">
                   <button
                     className="icon-button"
-                    disabled={busy}
+                    disabled={busy || !canEdit || reminderPending(r)}
                     aria-label={`Edit ${r.title}`}
                     onClick={() => setEditor(r)}
                   >
@@ -143,7 +155,7 @@ export function ReminderPanel({
                   </button>
                   <button
                     className="icon-button"
-                    disabled={busy}
+                    disabled={busy || !canEdit || reminderPending(r)}
                     aria-label={r.enabled ? 'Pause reminder' : 'Enable reminder'}
                     onClick={() => {
                       const input: ReminderInput = {
@@ -164,7 +176,7 @@ export function ReminderPanel({
                   </button>
                   <button
                     className="icon-button danger"
-                    disabled={busy}
+                    disabled={busy || !canEdit || reminderPending(r)}
                     aria-label={`Cancel reminder ${r.title}`}
                     onClick={() =>
                       void apply({ kind: 'reminder.cancel', reminderId: r.id, version: r.version })

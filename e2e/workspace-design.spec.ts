@@ -1,8 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 test('workspace pages and editors stay usable across desktop and phone layouts', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.route('**/api/memories?**', async (route) => {
-    const programs = new URL(route.request().url()).searchParams.get('kind') === 'program';
+    const kindFilter = new URL(route.request().url()).searchParams.get('kind');
+    const programs = kindFilter === 'program';
     const input = [
       [
         'idea',
@@ -20,24 +23,26 @@ test('workspace pages and editors stay usable across desktop and phone layouts',
       json: {
         items: programs
           ? []
-          : input.map(([kind, title, body], i) => ({
-              id: `record-${i}`,
-              kind,
-              title,
-              body,
-              summary: body,
-              tags: ['personal'],
-              version: 1,
-              createdAt: '2026-11-20T09:00:00Z',
-              updatedAt: '2026-11-24T08:00:00Z',
-              archived: false,
-              occurredAt: null,
-              occurredOn: null,
-              amount: null,
-              currency: null,
-              source: { channel: 'web', text: body },
-              taskState: 'open',
-            })),
+          : input
+              .filter(([kind]) => !kindFilter || kind === kindFilter)
+              .map(([kind, title, body], i) => ({
+                id: `record-${i}`,
+                kind,
+                title,
+                body,
+                summary: body,
+                tags: ['personal'],
+                version: 1,
+                createdAt: '2026-11-20T09:00:00Z',
+                updatedAt: '2026-11-24T08:00:00Z',
+                archived: false,
+                occurredAt: null,
+                occurredOn: null,
+                amount: null,
+                currency: null,
+                source: { channel: 'web', text: body },
+                taskState: 'open',
+              })),
       },
     });
   });
@@ -95,4 +100,21 @@ test('workspace pages and editors stay usable across desktop and phone layouts',
       }
     }
   }
+  expect(pageErrors).toEqual([]);
+});
+
+test('workspace navigation supports Back, Forward and reload without losing the selected section', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const nav = page.getByRole('navigation', { name: 'Workspace', exact: true });
+  await nav.getByRole('button', { name: 'Memory', exact: true }).click();
+  await expect(page).toHaveURL(/#memories$/);
+  await nav.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Memory', exact: true })).toBeVisible();
+  await page.goForward();
+  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
 });

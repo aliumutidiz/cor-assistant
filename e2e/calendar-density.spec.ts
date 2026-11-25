@@ -60,9 +60,11 @@ test('busy month stays bounded with every item available in the selected-day lis
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(cell.locator('.month-previews')).not.toBeVisible();
   await cell.locator('.month-mobile-count').click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Monday 19 October' })).toBeInViewport();
   await expect(page.locator('.month-agenda-event')).toHaveCount(12);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: '.runtime/screenshots/calendar-month-mobile.png', fullPage: true });
+  await page.screenshot({ path: '.runtime/screenshots/calendar-month-mobile.png', fullPage: false });
   await page.locator('.month-agenda-event').last().click();
   await expect(page.getByLabel('Event title', { exact: true })).toHaveValue(/Project review 12/);
 });
