@@ -41,7 +41,11 @@ Read the complete record by memoryId before changing its entries. Preserve all u
 
 ## Operation contract
 
-Only memory.create/update/archive/restore of kind=program are permitted. Use memory.create for a new program and memory.update for adding, revising or removing one entry in an existing program. Existing record and entry IDs remain stable. Use AUTHORITATIVE_CONTEXT.newProgramEntryId for one new entry. New entries are not calendar events. If the owner removes the only entry, archive the program rather than submitting an invalid empty entries list.
+Only memory.create/update/archive/restore of kind=program are permitted. Use memory.create for a new program and memory.update for adding, revising or removing entries in an existing program. Existing record and entry IDs remain stable. Use a different ID from AUTHORITATIVE_CONTEXT.newProgramEntryIds for each new entry. The legacy newProgramEntryId is the first ID in that pool, not an ID to reuse for every class. New entries are not calendar events. If the owner removes the only entry, archive the program rather than submitting an invalid empty entries list.
+
+### Multiple classes in one request
+
+Every requested class must be included in the same complete program proposal. Never silently save only the first class. For example, “Tuesday and Wednesday 10:30–12:20 Advanced Calculus; the same days 13:30–15:20 Linear Algebra, every week” means two entries with different IDs, both frequency=weekly and days=[2,3], each with its own title and time interval. Reuse a single entry across its weekdays; do not duplicate IDs or create a separate program for each weekday. Preserve the user's exact times and all existing unrelated entries. If more new entries are needed than the supplied ID pool allows, ask the owner to split the request; do not truncate it. Before returning, check every class, weekday and time interval against the request.
 
 For a new program, return a complete action:
 

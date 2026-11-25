@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { generateValidated } from '../server/model-generation.js';
 import { AppError } from '../server/errors.js';
+import { parseAssistantOutput } from '../server/assistant-output.js';
 import { ChatQueue } from '../server/chat-queue.js';
 
 describe('bounded pure model recovery', () => {
@@ -19,6 +20,19 @@ describe('bounded pure model recovery', () => {
     expect(result.output.message).toBe('Geçerli yanıt');
     expect(provider.generate).toHaveBeenCalledTimes(2);
     expect(provider.generate.mock.calls[1][0]).toContain('FORMAT_RECOVERY');
+  });
+  it('tells the repair turn which contract fields failed without echoing rejected values', async () => {
+    const provider = {
+      generate: vi
+        .fn()
+        .mockResolvedValueOnce({ output: { message: 'ok', action: null, read: 'private-rejected-value' } })
+        .mockResolvedValueOnce({ output: { message: 'ok', action: null, read: null } }),
+    };
+    await generateValidated(provider, 'request', {}, parseAssistantOutput, { used: false });
+    const repair = provider.generate.mock.calls[1][0];
+    expect(repair).toContain('VALIDATION_FEEDBACK');
+    expect(repair).toContain('read');
+    expect(repair).not.toContain('private-rejected-value');
   });
   it('shares one recovery budget across routing and execution', async () => {
     const budget = { used: false };

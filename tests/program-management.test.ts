@@ -46,6 +46,21 @@ function harness(outputs: unknown[] = []) {
   };
 }
 describe('program intent and bounded orchestration', () => {
+  it('provides distinct application IDs for multi-class requests and requires complete coverage', async () => {
+    const h = harness([create]);
+    await h.assistant.chat(
+      'salı ve çarşamba günleri 10:30-12:20 advanced calculus dersim var, aynı günler 13:30-15:20 linear algebra dersim her hafta',
+      'multiple-classes',
+    );
+    const prompt = h.generate.mock.calls[0][0];
+    const context = JSON.parse(
+      prompt.split('AUTHORITATIVE_CONTEXT: ')[1].split('\nUNTRUSTED_RELEVANT_MEMORY:')[0],
+    );
+    expect(context.newProgramEntryIds.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(context.newProgramEntryIds).size).toBe(context.newProgramEntryIds.length);
+    expect(context.newProgramEntryIds[0]).toBe(context.newProgramEntryId);
+    expect(prompt).toContain('Every requested class');
+  });
   it('repairs a nested JSON program proposal once without executing the quoted write', async () => {
     const h = harness([{ message: JSON.stringify(create), action: null, read: null }, create]);
     const result = (await h.assistant.chat(

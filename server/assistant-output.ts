@@ -1,5 +1,5 @@
 import { assistantResponse } from '../shared/contracts.js';
-import { AppError } from './errors.js';
+import { AppError, ModelValidationError } from './errors.js';
 
 // Recover only a complete response envelope, never a JSON fragment from prose.
 // Nested writes are deliberately rejected; all reads still pass server validation.
@@ -51,6 +51,6 @@ export function parseAssistantOutput(output: unknown) {
     }
   }
   const parsed = assistantResponse.safeParse(value);
-  if (!parsed.success) throw new AppError(502, 'Asistan geçerli yapılandırılmış yanıt üretmedi.');
+  if (!parsed.success) throw new ModelValidationError(parsed.error.issues);
   return parsed.data;
 }

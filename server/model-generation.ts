@@ -1,7 +1,7 @@
 import { setTimeout as pause } from 'node:timers/promises';
 import { z } from 'zod';
 import type { ModelProvider } from './provider.js';
-import { AppError } from './errors.js';
+import { AppError, ModelValidationError } from './errors.js';
 
 // Only pure model generation is retried. No calendar or operation service is
 // reachable from this helper. A single shared budget bounds recovery per chat.
@@ -27,6 +27,8 @@ export async function generateValidated<T>(
       try {
         return { ...result, output: validate(result.output) };
       } catch (error) {
+        if (error instanceof ModelValidationError) throw error;
+        if (error instanceof z.ZodError) throw new ModelValidationError(error.issues);
         if (error instanceof z.ZodError || (error instanceof AppError && error.status === 502))
           throw new AppError(
             502,
@@ -60,7 +62,10 @@ export async function generateValidated<T>(
       recovery.used = true;
       if (error.code === 'AGY_OUTPUT')
         correction =
-          '\nFORMAT_RECOVERY: Return exactly one JSON object matching the supplied schema. Do not invoke CLI, planning, filesystem, browser or shell tools. Only return the response envelope; the application runs validated actions. No prose outside the object, no code fences, no JSON encoded inside message. No tool or application action has been performed by this generation.';
+          '\nFORMAT_RECOVERY: Return exactly one JSON object matching the supplied schema. Do not invoke CLI, planning, filesystem, browser or shell tools. Only return the response envelope; the application runs validated actions. No prose outside the object, no code fences, no JSON encoded inside message. No tool or application action has been performed by this generation.' +
+          (error instanceof ModelValidationError
+            ? '\nVALIDATION_FEEDBACK: ' + JSON.stringify(error.feedback)
+            : '');
       try {
         await pause(350, undefined, { signal });
       } catch {

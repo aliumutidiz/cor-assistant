@@ -23,7 +23,9 @@ from datetime import datetime, timezone
 SOCKET = '/run/cor-agy/model.sock'
 MAX_REQUEST = 196608
 MAX_OUTPUT = 1048576
-MODEL = 'gemini-3.8-flash-low'
+MODEL = os.environ.get('COR_AGY_MODEL', 'gemini-4-hydrogen-low')
+if not re.fullmatch(r'gemini-[a-z0-9.-]{1,80}', MODEL):
+    raise ValueError('Invalid owner-configured AGY model')
 
 
 class ModelQuotaError(Exception):

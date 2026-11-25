@@ -443,6 +443,8 @@ export class AssistantService {
     const visibleRoutines = boundedModelRecords(routines ?? [], 8000);
     const visibleReminders = boundedModelRecords(reminders ?? [], 8000);
     const contextualQuestion = continuation?.group === group ? continuation : undefined;
+    const newProgramEntryIds =
+      group === 'program-management' ? Array.from({ length: 16 }, () => randomUUID()) : [];
     const context = {
       requester: workspaceActor.getStore()?.memberId
         ? {
@@ -459,7 +461,8 @@ export class AssistantService {
               items: programIndex.items,
               partial: programIndex.truncated || !!programPage?.next,
             },
-            newProgramEntryId: randomUUID(),
+            newProgramEntryId: newProgramEntryIds[0],
+            newProgramEntryIds,
           }
         : {}),
       continuation: contextualQuestion
