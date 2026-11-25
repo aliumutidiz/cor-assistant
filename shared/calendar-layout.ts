@@ -1,6 +1,6 @@
 import type { CalendarEvent } from './contracts';
 import { dateKey, localDateRange } from './time';
-/** Presentation only: midnight-to-midnight timed records belong above the hours too. */
+/** Presentation only: whole-day timed records belong above the hours too. */
 export function calendarDayGroups(events: CalendarEvent[], days: string[], zone: string) {
   const byDay = eventsByDay(events, days, zone);
   return new Map(
@@ -15,7 +15,9 @@ export function calendarDayGroups(events: CalendarEvent[], days: string[], zone:
       for (const event of byDay.get(day) ?? []) {
         const coversDay =
           Boolean(event.start.date) ||
-          (Date.parse(event.start.dateTime!) <= start && Date.parse(event.end.dateTime!) >= end);
+          // Legacy programs represent an entire day as 00:00–23:59 because
+          // their time contract does not accept 24:00. Keep source times intact.
+          (Date.parse(event.start.dateTime!) <= start && Date.parse(event.end.dateTime!) >= end - 60000);
         (coversDay ? allDay : timed).push(event);
       }
       return [day, { allDay, timed }] as const;

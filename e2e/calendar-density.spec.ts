@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
             : { dateTime: `2026-10-19T${String(i + 1).padStart(2, '0')}:00:00+03:00` },
       end:
         i === 7
-          ? { dateTime: '2026-10-20T00:00:00+03:00' }
+          ? { dateTime: '2026-10-19T23:59:00+03:00' }
           : i < 8
             ? { date: '2026-10-20' }
             : { dateTime: `2026-10-19T${String(i + 2).padStart(2, '0')}:00:00+03:00` },

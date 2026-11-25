@@ -16,6 +16,24 @@ const event = {
   end: { dateTime: '2026-10-20T01:00:00+03:00' },
 };
 describe('calendar layout', () => {
+  it('pins legacy 00:00–23:59 full-day programs without moving ordinary timed entries', () => {
+    const day = '2026-11-24';
+    const sport = {
+      ...event,
+      id: 'sport',
+      summary: 'Spor',
+      start: { dateTime: day + 'T00:00:00+03:00' },
+      end: { dateTime: day + 'T23:59:00+03:00' },
+    };
+    const groups = calendarDayGroups(
+      [sport, { ...sport, id: 'shorter', start: { dateTime: day + 'T10:00:00+03:00' } }],
+      [day],
+      'Europe/Istanbul',
+    );
+    expect(groups.get(day)!.allDay.map((e) => e.id)).toEqual(['sport']);
+    expect(groups.get(day)!.timed.map((e) => e.id)).toEqual(['shorter']);
+    expect(sport.end.dateTime).toBe(day + 'T23:59:00+03:00');
+  });
   it('keeps full-day timed spans above hours while preserving timed edges and exclusive endings', () => {
     const groups = calendarDayGroups(
       [
