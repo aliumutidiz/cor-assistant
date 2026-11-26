@@ -1,5 +1,6 @@
 import { memoryInput, memoryOperation } from '../shared/memory.js';
 import { personalProgram } from '../shared/personal-resources.js';
+import { noteTargetDay } from '../shared/notes.js';
 import { prefersProgramCapability, correctsCalendarTarget } from './program-intent.js';
 import { workspaceActor } from './workspace-access.js';
 import { randomUUID } from 'node:crypto';
@@ -333,14 +334,25 @@ export class AssistantService {
       : undefined;
     if (direct) {
       if (signal?.aborted) throw new AppError(499, 'İstek iptal edildi.');
-      const [events, programs] = await Promise.all([
+      const [events, programs, dayNotes] = await Promise.all([
         this.calendar.events('primary', direct.from, direct.to),
         programAvailability(this.store, direct.from, direct.to),
+        new PersonalMemory(this.store).search({ kind: 'note', from: direct.from, to: direct.to, limit: 8 }),
       ]);
       const result = {
         message:
           calendarAnswer(events, direct.label, preferences.timeZone, preferences.language) +
-          programDayMessage(programs, preferences.language, preferences.timeZone),
+          programDayMessage(programs, preferences.language, preferences.timeZone) +
+          (dayNotes.items.some((note) => noteTargetDay(note.noteTarget))
+            ? '\n\n' +
+              (baseLanguage(preferences.language) === 'tr' ? 'Gün notların:' : 'Day notes:') +
+              '\n' +
+              dayNotes.items
+                .filter((note) => noteTargetDay(note.noteTarget))
+                .map((note) => '- ' + note.occurredOn + ': ' + note.body.slice(0, 1000))
+                .join('\n') +
+              (dayNotes.next ? '\n…' : '')
+            : ''),
         skill: 'calendar-read',
         deterministic: true,
       };
@@ -681,6 +693,7 @@ export class AssistantService {
             const page = await memory.search({
               query: r.query ?? '',
               kind: group === 'program-management' ? 'program' : r.memoryKind,
+              noteTarget: r.noteTarget,
               taskState: r.taskState,
               archived: r.archived ?? false,
               from: r.from,

@@ -1,4 +1,5 @@
 import { focusDialog } from './dialog-focus';
+import type { NoteContext } from './NotesPanel';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bell, Plus, Pause, Play, PencilSimple, Trash, X, Clock } from '@phosphor-icons/react';
@@ -12,12 +13,14 @@ export function ReminderPanel({
   canEdit = true,
   operations = [],
   perform,
+  onNotes,
 }: {
   zone: string;
   telegramEnabled: boolean;
   canEdit?: boolean;
   operations?: Operation[];
   perform: (action: OperationInput) => Promise<Operation>;
+  onNotes?: (context: NoteContext) => void;
 }) {
   const [items, setItems] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,6 +188,14 @@ export function ReminderPanel({
                     <Trash size={18} />
                   </button>
                 </div>
+              )}
+              {onNotes && (
+                <button
+                  className="text-button"
+                  onClick={() => onNotes({ target: { type: 'reminder', id: r.id }, title: r.title })}
+                >
+                  Notes
+                </button>
               )}
             </article>
           ))}

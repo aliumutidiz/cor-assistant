@@ -1,10 +1,20 @@
 import { z } from 'zod';
 import { personalProgram, shoppingList, userProfile } from './personal-resources.js';
+import { noteTarget, noteTargetDay } from './notes.js';
 export function foldMemoryText(value: string) {
   return value.toLocaleLowerCase('tr').normalize('NFD').replace(/\p{M}/gu, '').replaceAll('ı', 'i');
 }
 
-export const memoryKind = z.enum(['idea', 'purchase', 'fact', 'task', 'profile', 'program', 'shopping_list']);
+export const memoryKind = z.enum([
+  'idea',
+  'purchase',
+  'fact',
+  'task',
+  'profile',
+  'program',
+  'shopping_list',
+  'note',
+]);
 export const memoryInput = z
   .object({
     kind: memoryKind,
@@ -15,6 +25,7 @@ export const memoryInput = z
     profile: userProfile.optional(),
     program: personalProgram.optional(),
     shopping: shoppingList.optional(),
+    noteTarget: noteTarget.optional(),
     occurredAt: z.iso.datetime({ offset: true }).nullable().default(null),
     occurredOn: z.iso.date().nullable().default(null),
     taskState: z.enum(['open', 'done']).optional(),
@@ -32,6 +43,21 @@ export const memoryInput = z
   })
   .strict()
   .superRefine((v, ctx) => {
+    if ((v.kind === 'note') !== (v.noteTarget !== undefined))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['noteTarget'],
+        message: 'A note needs a target; other record types cannot have one.',
+      });
+    if (
+      noteTargetDay(v.noteTarget) &&
+      (v.occurredAt || (v.occurredOn && v.occurredOn !== noteTargetDay(v.noteTarget)))
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['occurredOn'],
+        message: 'A day note must use its target date without an event time.',
+      });
     if (new TextEncoder().encode(JSON.stringify(v)).length > 40000)
       ctx.addIssue({
         code: 'custom',
@@ -102,6 +128,7 @@ export const memorySearch = z
   .object({
     query: z.string().trim().max(200).default(''),
     kind: memoryKind.optional(),
+    noteTarget: noteTarget.optional(),
     taskState: z.enum(['open', 'done']).optional(),
     before: z
       .string()

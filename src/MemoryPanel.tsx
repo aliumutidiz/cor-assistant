@@ -1,4 +1,6 @@
 import { focusDialog } from './dialog-focus';
+import type { NoteContext } from './NotesPanel';
+import { noteTargetLabel } from '../shared/notes';
 import { useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Plus, X, Archive, PencilSimple, ArrowsClockwise } from '@phosphor-icons/react';
@@ -21,6 +23,7 @@ export function MemoryPanel({
   operations,
   mode = 'memory',
   canEdit = true,
+  onNotes,
 }: {
   perform: (a: OperationInput) => Promise<Operation | undefined>;
   revision: string;
@@ -28,6 +31,7 @@ export function MemoryPanel({
   operations: Operation[];
   mode?: 'memory' | 'programs';
   canEdit?: boolean;
+  onNotes?: (context: NoteContext) => void;
 }) {
   const [query, setQuery] = useState(''),
     [kind, setKind] = useState(mode === 'programs' ? 'program' : ''),
@@ -202,8 +206,10 @@ export function MemoryPanel({
             <p className="memory-excerpt" dir="auto">
               {record.summary || record.body.slice(0, 240)}
             </p>
+            {record.noteTarget && <small>{noteTargetLabel(record.noteTarget)}</small>}
             <ResourcePreview
               record={record}
+              onNotes={onNotes}
               busy={!!toggling || recordPending(record)}
               toggle={async (id) => {
                 if (toggling) return;
@@ -267,6 +273,32 @@ export function MemoryPanel({
               ))}
             </div>
             <div className="memory-actions">
+              {onNotes && record.noteTarget && (
+                <button
+                  className="text-button"
+                  onClick={() =>
+                    onNotes({ target: record.noteTarget!, title: noteTargetLabel(record.noteTarget!) })
+                  }
+                >
+                  Related notes
+                </button>
+              )}
+              {onNotes && record.kind !== 'note' && (
+                <button
+                  className="text-button"
+                  onClick={() =>
+                    onNotes({
+                      target:
+                        record.kind === 'program'
+                          ? { type: 'program', id: record.id }
+                          : { type: 'memory', id: record.id },
+                      title: record.title,
+                    })
+                  }
+                >
+                  Notes
+                </button>
+              )}
               {record.kind === 'task' && !record.archived && (
                 <button
                   className="text-button"
@@ -417,7 +449,23 @@ export function MemoryPanel({
             {selected && (
               <>
                 <p className="memory-body">{selected.body}</p>
-                <ResourcePreview record={selected} />
+                <ResourcePreview record={selected} onNotes={onNotes} />
+                {onNotes && selected.kind !== 'note' && (
+                  <button
+                    className="button subtle"
+                    onClick={() =>
+                      onNotes({
+                        target:
+                          selected.kind === 'program'
+                            ? { type: 'program', id: selected.id }
+                            : { type: 'memory', id: selected.id },
+                        title: selected.title,
+                      })
+                    }
+                  >
+                    Notes
+                  </button>
+                )}
                 <p>Recorded: {formatDate(selected.createdAt, timeZone)}</p>
                 <p>
                   Occurred:{' '}
@@ -532,6 +580,9 @@ function MemoryEditor({
               try {
                 await save({
                   ...resources,
+                  ...(kind === 'note'
+                    ? { noteTarget: record?.noteTarget ?? { type: 'workspace' as const } }
+                    : {}),
                   kind,
                   title,
                   body: body.trim() || (kind === 'program' ? 'Recurring schedule: ' + title : body),

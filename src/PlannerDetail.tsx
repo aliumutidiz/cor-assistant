@@ -4,7 +4,7 @@ import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { api, formatDate } from './api';
 import type { CalendarEvent, Operation, OperationInput } from '../shared/contracts';
-import type { MemoryRecord } from '../shared/memory';
+import { memoryInput, type MemoryRecord } from '../shared/memory';
 export type PlannerItem = CalendarEvent & {
   source: 'program' | 'reminder' | 'routine';
   sourceId: string;
@@ -20,6 +20,7 @@ export function PlannerDetail({
   perform,
   changed,
   manage,
+  onNotes,
 }: {
   item: PlannerItem;
   zone: string;
@@ -28,6 +29,7 @@ export function PlannerDetail({
   perform: (input: OperationInput) => Promise<Operation | undefined>;
   changed: () => void;
   manage: () => void;
+  onNotes?: () => void;
 }) {
   const [moveTo, setMoveTo] = useState('');
   const [moveStart, setMoveStart] = useState(''),
@@ -56,7 +58,6 @@ export function PlannerDetail({
               }
             : {}),
         });
-      const { memoryInput } = await import('../shared/memory');
       const op = await perform({
         kind: 'memory.update',
         memoryId: record.id,
@@ -101,6 +102,11 @@ export function PlannerDetail({
           <button className="text-button" onClick={manage}>
             Manage {item.source === 'program' ? 'program' : item.source}
           </button>
+          {onNotes && (
+            <button className="button subtle" onClick={onNotes}>
+              Notes for this occurrence
+            </button>
+          )}
           {item.source === 'program' && canEdit && (
             <>
               <div className="form-actions plan-actions">

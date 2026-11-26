@@ -5,6 +5,7 @@ import { dateKey } from '../shared/time.js';
 import { newJob } from './repositories.js';
 import { boundedMemoryHints, memoryTerms } from '../shared/memory-retrieval.js';
 import { profileIsCurrent, programOccurrences } from '../shared/personal-resources.js';
+import { sameNoteTarget, noteTargetDay } from '../shared/notes.js';
 
 export class PersonalMemory {
   constructor(private store: Store) {}
@@ -111,6 +112,32 @@ export class PersonalMemory {
         : memoryInput.parse(action.record);
     if (action.kind === 'memory.complete' && old?.kind !== 'task')
       throw new AppError(400, 'Yalnızca görevler tamamlanabilir.');
+    const target = input.noteTarget;
+    if (target && (!old || !sameNoteTarget(old.noteTarget, target))) {
+      if (target.type === 'program' || target.type === 'memory') {
+        const linked = await this.store.memory(target.id);
+        if (
+          !linked ||
+          (target.type === 'program' &&
+            (!linked.program ||
+              (target.entryId && !linked.program.entries.some((entry) => entry.id === target.entryId))))
+        )
+          throw new AppError(
+            404,
+            'The note target could not be found. Read the current resource before attaching a note.',
+          );
+        if (
+          target.type === 'memory' &&
+          target.entryId &&
+          !linked.shopping?.items.some((item) => item.id === target.entryId)
+        )
+          throw new AppError(404, 'The note item could not be found.');
+      }
+      if (target.type === 'reminder' && !(await this.store.reminder(target.id)))
+        throw new AppError(404, 'The reminder for this note could not be found.');
+      if (target.type === 'routine' && !(await this.store.routines()).some((row) => row.id === target.id))
+        throw new AppError(404, 'The routine for this note could not be found.');
+    }
     if (
       /(?:GOCSPX-|-----BEGIN [\w ]*PRIVATE KEY-----|AIza[\w-]{25,}|AQ\.[\w-]{30,}|\b\d{7,12}:[\w-]{30,})/.test(
         input.title + '\n' + input.body,
@@ -122,7 +149,9 @@ export class PersonalMemory {
     const preferences = await this.store.get<{ timeZone: string }>('preferences');
     const timeZone = old?.timeZone ?? preferences?.timeZone ?? 'Europe/Istanbul';
     const occurredOn =
-      input.occurredOn ?? (input.occurredAt ? dateKey(new Date(input.occurredAt), timeZone) : null);
+      noteTargetDay(input.noteTarget) ??
+      input.occurredOn ??
+      (input.occurredAt ? dateKey(new Date(input.occurredAt), timeZone) : null);
     if (
       input.occurredOn &&
       input.occurredAt &&

@@ -71,15 +71,19 @@ export function operationMessage(op: Operation, timeZone = 'Europe/Istanbul', la
     'routine.run': 'Rutini çalıştırmak için sıraya aldım; henüz tamamlanmadı.',
     'preferences.update': 'Tercihlerini kaydettim.',
     'memory.create':
-      memory?.kind === 'task'
-        ? 'Görev listene kaydettim.'
-        : memory?.kind === 'program'
-          ? 'Programına kaydettim.'
-          : 'Kişisel hafızana kaydettim. Kayıtlarım ekranından ayrıntıları görebilirsin.',
+      memory?.kind === 'note'
+        ? 'Notunu kaydettim.'
+        : memory?.kind === 'task'
+          ? 'Görev listene kaydettim.'
+          : memory?.kind === 'program'
+            ? 'Programına kaydettim.'
+            : 'Kişisel hafızana kaydettim. Kayıtlarım ekranından ayrıntıları görebilirsin.',
     'memory.update':
-      memory?.kind === 'program'
-        ? 'Programını güncelledim.'
-        : 'Hafıza kaydını güncelledim; önceki sürüm geçmişte korunuyor.',
+      memory?.kind === 'note'
+        ? 'Notunu güncelledim.'
+        : memory?.kind === 'program'
+          ? 'Programını güncelledim.'
+          : 'Hafıza kaydını güncelledim; önceki sürüm geçmişte korunuyor.',
     'memory.complete': 'Görevi tamamlandı olarak işaretledim. Açık görevlerden kaldırdım; geçmişi korunuyor.',
     'memory.archive': 'Kaydı arşivledim; aktif hafıza aramalarında kullanmayacağım.',
     'memory.restore': 'Kaydı arşivden geri getirdim.',
@@ -162,11 +166,18 @@ function englishOperationMessage(op: Operation, timeZone: string) {
     'reminder.update': 'Updated your reminder.',
     'reminder.cancel': 'Canceled your reminder.',
     'preferences.update': 'Saved your preferences.',
-    'memory.create': record?.kind === 'program' ? 'Saved your program.' : 'Saved to your personal memory.',
+    'memory.create':
+      record?.kind === 'note'
+        ? 'Saved your note.'
+        : record?.kind === 'program'
+          ? 'Saved your program.'
+          : 'Saved to your personal memory.',
     'memory.update':
-      record?.kind === 'program'
-        ? 'Updated your program.'
-        : 'Updated your memory record; the previous version is preserved.',
+      record?.kind === 'note'
+        ? 'Updated your note.'
+        : record?.kind === 'program'
+          ? 'Updated your program.'
+          : 'Updated your memory record; the previous version is preserved.',
     'memory.complete': 'Marked the task complete; history is preserved.',
     'memory.archive': 'Archived the record.',
     'memory.restore': 'Restored the record.',

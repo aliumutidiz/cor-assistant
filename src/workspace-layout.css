@@ -92,6 +92,90 @@
   --day-heading-height: 64px;
   min-width: 800px;
 }
+.day-heading {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  height: var(--day-heading-height);
+  min-width: 0;
+  background: var(--tone-190);
+}
+.day-heading .day-header {
+  position: static;
+  width: 100%;
+}
+.day-note-button {
+  position: absolute;
+  right: 4px;
+  bottom: 5px;
+  min-width: 28px;
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  padding: 5px;
+}
+.day-note-button:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+.notes-dialog {
+  width: min(640px, calc(100vw - 24px));
+}
+.notes-form {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.notes-form label {
+  display: grid;
+  gap: 6px;
+}
+.notes-form textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+.notes-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.notes-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  min-width: 0;
+}
+.attached-note {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+  min-width: 0;
+}
+.notes-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+  line-height: 1.6;
+}
+.attached-note footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+}
+.program-entry-notes > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  padding: 8px 0;
+}
+.program-entry-notes button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
 .single-day .week-grid {
   min-width: 0;
 }

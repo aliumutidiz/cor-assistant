@@ -23,6 +23,7 @@ import {
 import * as Dialog from '@radix-ui/react-dialog';
 import { MarkdownMessage } from './MarkdownMessage';
 import { ReminderPanel } from './ReminderPanel';
+import { NotesPanel, type NoteContext } from './NotesPanel';
 import type { Reminder } from '../shared/reminders';
 import { VoiceButton, VoiceInput, VoiceSettingsPanel, stopAllVoice } from './VoiceControls';
 import type { VoiceStatus } from '../shared/voice';
@@ -243,6 +244,7 @@ export function App() {
   const [historyQuery, setHistoryQuery] = useState('');
   const [dismissedReminders, setDismissedReminders] = useState<string[]>([]);
   const [selectedDay, setSelectedDay] = useState(() => dateKey(new Date(), 'Europe/Istanbul'));
+  const [notesContext, setNotesContext] = useState<NoteContext>();
   const [clockNow, setClockNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setClockNow(new Date()), 60000);
@@ -1196,6 +1198,17 @@ export function App() {
                   </button>
                 </div>
                 <div className="calendar-context-bar">
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      setNotesContext({
+                        target: { type: 'day', day: selectedDay },
+                        title: 'Day · ' + selectedDay,
+                      })
+                    }
+                  >
+                    Notes · {selectedDay}
+                  </button>
                   <div className="planner-layers" aria-label="Calendar layers">
                     {(['calendar', 'program', 'reminder', 'routine'] as const).map((layer) => (
                       <label key={layer}>
@@ -1315,25 +1328,40 @@ export function App() {
                           ?.value.replace('GMT', '')}
                       </div>
                       {days.map((d) => (
-                        <button
-                          aria-label={`Open ${d.toISOString().slice(0, 10)}`}
-                          onClick={() => {
-                            setSelectedDay(d.toISOString().slice(0, 10));
-                            setView('day');
-                          }}
-                          key={d.toISOString()}
-                          className={
-                            'day-header ' +
-                            (d.toISOString().slice(0, 10) === dateKey(new Date(), zone) ? 'is-today' : '')
-                          }
-                        >
-                          <span>
-                            {new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short' }).format(
-                              d,
-                            )}
-                          </span>
-                          <strong>{d.getUTCDate()}</strong>
-                        </button>
+                        <div className="day-heading" key={d.toISOString()}>
+                          <button
+                            aria-label={`Open ${d.toISOString().slice(0, 10)}`}
+                            onClick={() => {
+                              setSelectedDay(d.toISOString().slice(0, 10));
+                              setView('day');
+                            }}
+                            key={d.toISOString()}
+                            className={
+                              'day-header ' +
+                              (d.toISOString().slice(0, 10) === dateKey(new Date(), zone) ? 'is-today' : '')
+                            }
+                          >
+                            <span>
+                              {new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short' }).format(
+                                d,
+                              )}
+                            </span>
+                            <strong>{d.getUTCDate()}</strong>
+                          </button>
+                          <button
+                            className="day-note-button"
+                            aria-label={'Notes for ' + d.toISOString().slice(0, 10)}
+                            title={'Notes for ' + d.toISOString().slice(0, 10)}
+                            onClick={() =>
+                              setNotesContext({
+                                target: { type: 'day', day: d.toISOString().slice(0, 10) },
+                                title: 'Day · ' + d.toISOString().slice(0, 10),
+                              })
+                            }
+                          >
+                            <Notebook size={16} aria-hidden />
+                          </button>
+                        </div>
                       ))}
                       {[...timelineGroups.values()].some((group) => group.allDay.length) && (
                         <>
@@ -1515,6 +1543,7 @@ export function App() {
           )}
           {page === 'reminders' && (
             <ReminderPanel
+              onNotes={setNotesContext}
               zone={zone}
               telegramEnabled={!!s?.telegram?.enabled}
               canEdit={s.actor?.role !== 'viewer'}
@@ -1582,6 +1611,12 @@ export function App() {
                     onClick={() => setRoutineEditor(r)}
                   >
                     Edit
+                  </button>
+                  <button
+                    className="button subtle small"
+                    onClick={() => setNotesContext({ target: { type: 'routine', id: r.id }, title: r.name })}
+                  >
+                    Notes
                   </button>
                 </article>
               ))}
@@ -1844,6 +1879,7 @@ export function App() {
             >
               <MemoryPanel
                 key={page}
+                onNotes={setNotesContext}
                 mode={page === 'programs' ? 'programs' : 'memory'}
                 canEdit={s.actor?.role !== 'viewer'}
                 perform={perform}
@@ -2103,6 +2139,15 @@ export function App() {
       {eventEditor !== undefined && (
         <EventEditor
           event={eventEditor}
+          onNotes={
+            eventEditor?.id
+              ? () =>
+                  setNotesContext({
+                    target: { type: 'event', id: eventEditor.id, calendarId: eventEditor.calendarId },
+                    title: eventEditor.summary,
+                  })
+              : undefined
+          }
           calendarId={calendarId}
           calendars={calendars}
           zone={zone}
@@ -2118,6 +2163,20 @@ export function App() {
       {plannerDetail && (
         <PlannerDetail
           item={plannerDetail}
+          onNotes={() =>
+            setNotesContext({
+              target:
+                plannerDetail.source === 'program'
+                  ? {
+                      type: 'program',
+                      id: plannerDetail.sourceId,
+                      entryId: plannerDetail.entryId,
+                      day: plannerDetail.originalDay,
+                    }
+                  : { type: plannerDetail.source, id: plannerDetail.sourceId },
+              title: plannerDetail.summary + ' · ' + (plannerDetail.originalDay ?? ''),
+            })
+          }
           zone={zone}
           canEdit={s.actor?.role !== 'viewer'}
           close={() => setPlannerDetail(undefined)}
@@ -2148,6 +2207,17 @@ export function App() {
         />
       )}
       {advanced && <Advanced onClose={() => setAdvanced(false)} save={perform} calendarId={calendarId} />}
+      {notesContext && (
+        <NotesPanel
+          key={JSON.stringify(notesContext.target)}
+          context={notesContext}
+          close={() => setNotesContext(undefined)}
+          canEdit={s.actor?.role !== 'viewer'}
+          perform={perform}
+          operations={operations}
+          zone={zone}
+        />
+      )}
     </div>
   );
 }
@@ -2160,6 +2230,7 @@ function EventEditor({
   busy,
   onClose,
   save,
+  onNotes,
 }: {
   event: CalendarEvent | null;
   calendarId: string;
@@ -2169,6 +2240,7 @@ function EventEditor({
   busy: boolean;
   onClose: () => void;
   save: (a: OperationInput) => Promise<void>;
+  onNotes?: () => void;
 }) {
   const [event, setEvent] = useState(initialEvent);
   const zone = event?.start.timeZone ?? ownerZone;
@@ -2334,6 +2406,11 @@ function EventEditor({
       description="Check dates and the destination calendar. Invitations and series changes require approval."
     >
       <form onSubmit={(e) => void submit(e)} className="editor-form">
+        {onNotes && (
+          <button type="button" className="text-button" onClick={onNotes}>
+            Personal notes
+          </button>
+        )}
         {!canEdit && <p className="notice">This calendar is read-only. You can view event details.</p>}
         {initialEvent?.recurringEventId && (
           <label>

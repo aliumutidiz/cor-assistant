@@ -65,7 +65,8 @@ CREATE TABLE IF NOT EXISTS memory_items (
 );
 ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS occurred_on date;
 ALTER TABLE memory_items DROP CONSTRAINT IF EXISTS memory_items_kind_check;
-ALTER TABLE memory_items ADD CONSTRAINT memory_items_kind_check CHECK(kind IN ('idea','purchase','fact','task','profile','program','shopping_list'));
+ALTER TABLE memory_items ADD CONSTRAINT memory_items_kind_check CHECK(kind IN ('idea','purchase','fact','task','profile','program','shopping_list','note'));
+CREATE INDEX IF NOT EXISTS memory_note_target_idx ON memory_items USING hash ((data->'noteTarget')) WHERE data ? 'noteTarget';
 -- Replace only derived search data from early development schemas; original rows remain intact.
 DROP INDEX IF EXISTS memory_search_idx;
 DROP INDEX IF EXISTS memory_tags_search_idx;

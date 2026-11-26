@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { NoteContext } from './NotesPanel';
 import type { PersonalProgram } from '../shared/personal-resources';
 import { Plus, X } from '@phosphor-icons/react';
 import type { MemoryInput, MemoryRecord } from '../shared/memory';
@@ -13,6 +14,7 @@ export const memoryLabels = {
   profile: 'Owner profile',
   program: 'Program',
   shopping_list: 'Shopping list',
+  note: 'Note',
 };
 export type ResourceData = Pick<MemoryInput, 'profile' | 'program' | 'shopping'>;
 export function resourceDefaults(kind: MemoryInput['kind'], zone: string): ResourceData {
@@ -581,10 +583,12 @@ export function ResourcePreview({
   record,
   toggle,
   busy = false,
+  onNotes,
 }: {
   record: MemoryRecord;
   toggle?: (id: string) => void;
   busy?: boolean;
+  onNotes?: (context: NoteContext) => void;
 }) {
   const shopping = record.shopping,
     program = record.program;
@@ -623,6 +627,30 @@ export function ResourcePreview({
       )}
       {program && (
         <div className="program-preview">
+          {onNotes && (
+            <details className="program-entry-notes">
+              <summary>Activity notes ({program.entries.length})</summary>
+              {program.entries.map((entry) => (
+                <div key={entry.id}>
+                  <strong>{entry.title}</strong>
+                  <small>
+                    {entry.start}–{entry.end}
+                  </small>
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      onNotes({
+                        target: { type: 'program', id: record.id, entryId: entry.id },
+                        title: record.title + ' · ' + entry.title,
+                      })
+                    }
+                  >
+                    Notes for {entry.title}
+                  </button>
+                </div>
+              ))}
+            </details>
+          )}
           <small>
             {program.enabled ? 'Next 7 days' : 'Program paused'} · {program.timeZone} ·{' '}
             {program.blocksTime === false ? 'Does not block time' : 'Included in availability'}

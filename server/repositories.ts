@@ -1,4 +1,5 @@
 import { compareMessages } from '../shared/chat-messages.js';
+import { sameNoteTarget, noteTargetDay } from '../shared/notes.js';
 import {
   initialConversationState,
   type ConversationState,
@@ -156,6 +157,8 @@ export class MemoryStore implements Store {
         (r) =>
           r.archived === search.archived &&
           (!search.kind || r.kind === search.kind) &&
+          (!search.noteTarget || sameNoteTarget(r.noteTarget, search.noteTarget)) &&
+          (!(search.kind === 'note' && (search.from || search.to)) || !!noteTargetDay(r.noteTarget)) &&
           (!search.taskState || (r.kind === 'task' && (r.taskState ?? 'open') === search.taskState)) &&
           (!search.before || BigInt(r.seq) < BigInt(search.before)) &&
           (!search.from ||
@@ -564,6 +567,8 @@ export class PostgresStore implements Store {
       AND ($6='' OR cor_memory_vector_v1(title,body || ' ' || cor_resource_text(data),summary,data->'tags') @@ websearch_to_tsquery('pg_catalog.turkish',translate($6,'Iİ','ıi'))
         OR cor_memory_vector_v1(title,body || ' ' || cor_resource_text(data),summary,data->'tags') @@ to_tsquery('pg_catalog.simple',$7))
       AND ($9::text IS NULL OR (kind='task' AND COALESCE(data->>'taskState','open')=$9))
+      AND ($10::jsonb IS NULL OR (data ? 'noteTarget' AND data->'noteTarget'=$10::jsonb))
+      AND ($2::text IS DISTINCT FROM 'note' OR ($4::timestamptz IS NULL AND $5::timestamptz IS NULL) OR (data->'noteTarget') ? 'day')
       ORDER BY seq DESC LIMIT $8`,
         [
           search.archived,
@@ -575,6 +580,7 @@ export class PostgresStore implements Store {
           prefix,
           search.limit + 1,
           search.taskState ?? null,
+          search.noteTarget ? JSON.stringify(search.noteTarget) : null,
         ],
       )
     ).rows;

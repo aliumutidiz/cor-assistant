@@ -16,7 +16,7 @@ export const skillMetadata: Record<SkillGroup, string> = {
   'program-management':
     'Manage weekly/monthly personal schedules, active/rest day cycles, class timetables, occurrence completion/skipping/moving, pauses and optional deterministic Telegram notifications. A weekday class normally belongs here unless explicitly requested on Google Calendar. Programs are independent of Google events and AI report routines.',
   'personal-memory':
-    'Manage durable owner profile (preferences, priorities, identity, personal boundaries), ideas, purchases, explicit tasks, weekly/monthly reusable programs and shopping lists. Search/read full records before revising. Programs do not create calendar events. Independent reminders belong to reminder-management.',
+    'Manage notes attached to dates, programs, individual program entries or occurrences, events, reminders, routines and records; also durable owner profile, ideas, purchases, explicit tasks, reusable programs and shopping lists. A note does not change its linked resource or create a reminder. Search/read full records before revising. Programs do not create calendar events. Independent reminders belong to reminder-management.',
   conversation:
     'Greetings, ordinary conversation, advice and follow-up discussion without calendar mutations or unsupported tool claims.',
   'reminder-management':

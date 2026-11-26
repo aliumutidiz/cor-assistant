@@ -2,6 +2,13 @@ import { foldMemoryText } from '../shared/memory.js';
 /** Conservative capability hints only; never an action, date parser or approval. */
 export function prefersProgramCapability(message: string) {
   const text = foldMemoryText(message);
+  // Attached notes use personal-memory; they do not replace a program's entries.
+  if (
+    /\bnotes?\b|\bnot(?:lar|um|un|u|a)\p{L}*\b|\bnot\b.{0,45}(?:ekle|kaydet|duzenle|sil|oku|goster|dus|tut|yaz|birak)|(?:ekle|kaydet|duzenle|sil|yaz).{0,45}\bnot\b/u.test(
+      text,
+    )
+  )
+    return false;
   const namedProgram =
     /ders\s*program|haftalik\s+program|aylik\s+program|class\s+(?:schedule|timetable)|course\s+(?:schedule|timetable)|weekly\s+(?:schedule|timetable)|monthly\s+(?:schedule|timetable)/u.test(
       text,

@@ -1,4 +1,5 @@
 import { foldMemoryText, resourceSearchText, type MemoryRecord } from './memory.js';
+import type { NoteTarget } from './notes.js';
 
 const stop = new Set(
   'bana benim beni bizim bunu buna bunlar bunun şunu şuna şöyle böyle daha kadar hangi nasıl neden için sonra önce bugün yarın hafta lütfen acaba istiyorum söyler misin şey bir olan olarak şimdi saat her tüm tekrar hakkında hatırla hatırlıyor musun kaydet oluştur güncelle'
@@ -51,6 +52,7 @@ export function boundedMemoryHints(
     truncated: boolean;
     taskState?: 'open' | 'done';
     remindAt?: string | null;
+    noteTarget?: NoteTarget;
   }[] = [];
   let used = 2;
   for (const { record: r } of ranked) {
@@ -60,6 +62,7 @@ export function boundedMemoryHints(
       id: r.id,
       version: r.version,
       kind: r.kind,
+      ...(r.noteTarget ? { noteTarget: r.noteTarget } : {}),
       ...(r.kind === 'task' ? { taskState: r.taskState ?? 'open', remindAt: r.remindAt } : {}),
       title: r.title,
       summary: original.slice(0, 500),

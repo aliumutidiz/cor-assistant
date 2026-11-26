@@ -1,6 +1,7 @@
 import { replyLanguage } from './languages.js';
 import { z } from 'zod';
 import { memoryOperation, memoryKind } from './memory.js';
+import { noteTarget } from './notes.js';
 import { reminderOperation } from './reminders.js';
 
 export const timezone = z
@@ -298,6 +299,7 @@ export const assistantResponse = z
         to: z.iso.datetime({ offset: true }).optional(),
         query: z.string().trim().max(200).optional(),
         memoryKind: memoryKind.optional(),
+        noteTarget: noteTarget.optional(),
         taskState: z.enum(['open', 'done']).optional(),
         memoryId: z.uuid().optional(),
         reminderId: z.uuid().optional(),

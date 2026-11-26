@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { Store } from './repositories.js';
 import { PersonalMemory } from './memory-service.js';
 import { memoryKind, memorySearch } from '../shared/memory.js';
+import { noteTarget } from '../shared/notes.js';
 import { Readable } from 'node:stream';
 
 export function memoryRoutes(app: FastifyInstance, store: Store) {
@@ -46,6 +47,18 @@ export function memoryRoutes(app: FastifyInstance, store: Store) {
       .object({
         query: z.string().max(200).optional(),
         kind: memoryKind.optional(),
+        noteTarget: z
+          .string()
+          .max(4096)
+          .transform((value, ctx) => {
+            try {
+              return noteTarget.parse(JSON.parse(value));
+            } catch {
+              ctx.addIssue({ code: 'custom', message: 'Invalid note target' });
+              return z.NEVER;
+            }
+          })
+          .optional(),
         taskState: z.enum(['open', 'done']).optional(),
         before: z.string().optional(),
         from: z.string().optional(),
@@ -76,6 +89,7 @@ export function memoryRoutes(app: FastifyInstance, store: Store) {
       `Occurrence day: ${record.occurredOn ?? 'Unknown'}`,
       `Version: ${record.version}`,
       `Archived: ${record.archived}`,
+      ...(record.noteTarget ? ['Attachment: ' + JSON.stringify(record.noteTarget)] : []),
       ...(record.kind === 'task'
         ? [`Task state: ${record.taskState ?? 'open'}`, `Remind at: ${record.remindAt ?? 'Not scheduled'}`]
         : []),
